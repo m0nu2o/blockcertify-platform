@@ -1,0 +1,2 @@
+
+BlockCertify brand assets and exported public resources can be stored here.

@@ -1,0 +1,14 @@
+
+{
+  "name": "BlockCertify",
+  "short_name": "BlockCertify",
+  "description": "Blockchain-based secure digital certificate issuance and verification system.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060b19",
+  "theme_color": "#38bdf8",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

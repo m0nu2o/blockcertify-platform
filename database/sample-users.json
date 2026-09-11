@@ -1,0 +1,23 @@
+
+[
+  {
+    "role": "admin",
+    "email": "admin@blockcertify.com",
+    "password": "Admin@12345",
+    "name": "System Admin"
+  },
+  {
+    "role": "institution",
+    "email": "registrar@futureuniversity.edu",
+    "password": "Welcome@123",
+    "name": "Registrar Office",
+    "institution": "Future University"
+  },
+  {
+    "role": "student",
+    "email": "student@blockcertify.com",
+    "password": "Welcome@123",
+    "name": "Ava Thompson",
+    "studentId": "STU-001"
+  }
+]

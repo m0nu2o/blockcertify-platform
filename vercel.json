@@ -1,0 +1,7 @@
+
+{
+  "framework": "nextjs",
+  "installCommand": "npm install && npm install --workspace client && npm install --workspace server && npm install --workspace contracts",
+  "buildCommand": "npm run build --workspace client",
+  "outputDirectory": "client/.next"
+}
