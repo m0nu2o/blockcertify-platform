@@ -8,6 +8,8 @@ export const notFoundHandler = (_req: Request, res: Response) => {
 };
 
 export const errorHandler = (err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  console.error(err);
   if (err instanceof ZodError) {
     const issueMessages = err.issues.map((issue) => `${issue.path.join('.') || 'field'}: ${issue.message}`).join(', ');
     return res.status(400).json({
@@ -21,6 +23,5 @@ export const errorHandler = (err: Error, _req: Request, res: Response, _next: Ne
     return res.status(err.statusCode).json({ success: false, message: err.message, details: err.details });
   }
 
-  console.error(err);
-  return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+  return res.status(500).json({ success: false, message: isProd ? 'Internal server error' : (err.message || 'Internal server error') });
 };
