@@ -4,10 +4,13 @@ node_modules
 dist
 coverage
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.production-template
 pnpm-lock.yaml
 yarn.lock
+cookies.txt
+*.txt
 artifacts
 cache
 typechain-types
