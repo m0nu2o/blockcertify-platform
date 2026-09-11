@@ -32,6 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </LenisProvider>
           </FontProvider>
         </LanguageProvider>
+        <footer style={{ textAlign: 'center', padding: '2rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '4rem' }}>
+          © 2026 BlockCertify. All rights reserved. Unauthorized copying, distribution, or reverse engineering is prohibited.
+        </footer>
       </body>
     </html>
   );
