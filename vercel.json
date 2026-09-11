@@ -1,1 +1,1 @@
-{"framework": "nextjs", "buildCommand": "cd client && npm run build", "outputDirectory": "client/.next"}
+{"buildCommand": "cd client && next build", "outputDirectory": "client/.next"}
