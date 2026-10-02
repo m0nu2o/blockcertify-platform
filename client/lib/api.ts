@@ -4,10 +4,10 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000
 function getDemoFallback<T>(path: string, method = 'GET'): T | null {
   const p = path.split('?')[0];
 
-  if (p === '/analytics/admin') {
+  if (p === '/analytics/admin' || p === '/analytics/overview') {
     return {
       success: true,
-      message: 'Admin analytics retrieved',
+      message: 'Analytics retrieved',
       data: {
         stats: {
           certificatesIssued: 142,
@@ -28,6 +28,71 @@ function getDemoFallback<T>(path: string, method = 'GET'): T | null {
           { _id: 4, count: 480 },
           { _id: 5, count: 589 },
         ],
+      },
+    } as unknown as T;
+  }
+
+  if (p === '/notifications') {
+    return {
+      success: true,
+      data: [
+        { _id: 'notif-1', title: 'System Ready', message: 'Blockchain node and smart contracts active.', type: 'success', read: false, createdAt: new Date().toISOString() },
+        { _id: 'notif-2', title: 'Subscription Testing', message: 'Testing mode admin approval active.', type: 'info', read: true, createdAt: new Date().toISOString() },
+      ],
+    } as unknown as T;
+  }
+
+  if (p.startsWith('/notifications/') && method === 'PATCH') {
+    return { success: true, message: 'Notification updated' } as unknown as T;
+  }
+
+  if (p === '/certificates' || p === '/certificates/recent') {
+    return {
+      success: true,
+      data: {
+        items: [
+          {
+            _id: 'cert-1',
+            certificateId: 'BC-5A4A9D6E',
+            studentName: 'Ava Thompson',
+            studentId: 'STU-001',
+            degree: 'Bachelor of Science',
+            course: 'Computer Science',
+            department: 'Engineering',
+            institutionName: 'Future University',
+            issueDate: new Date().toISOString().slice(0, 10),
+            status: 'issued',
+            revoked: false,
+            txHash: '0x3a8f5b892d1c67e41b89',
+            fileUrl: '/sample-certificate.pdf',
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 5,
+      },
+    } as unknown as T;
+  }
+
+  if (p === '/certificates/institution/summary') {
+    return {
+      success: true,
+      data: {
+        totalIssued: 98,
+        totalRevoked: 1,
+        activeTemplates: 4,
+        monthlyLimit: 500,
+        remainingThisMonth: 402,
+      },
+    } as unknown as T;
+  }
+
+  if (p === '/analytics/institution') {
+    return {
+      success: true,
+      data: {
+        monthlyIssuance: [{ month: 'Jan', count: 12 }, { month: 'Feb', count: 24 }, { month: 'Mar', count: 38 }, { month: 'Apr', count: 24 }],
+        departmentDistribution: [{ department: 'Engineering', count: 50 }, { department: 'Business', count: 30 }, { department: 'Science', count: 18 }],
       },
     } as unknown as T;
   }
