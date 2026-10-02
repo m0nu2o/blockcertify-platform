@@ -43,9 +43,12 @@ html[data-theme='monochrome'] { color-scheme: dark; --background: 8 8 8; --foreg
   }
 }
 
-html, body {
-  overscroll-behavior: none;
-  overflow-x: hidden;
+html {
+  overscroll-behavior-y: none;
+}
+
+body {
+  overflow-x: clip;
 }
 
 body {

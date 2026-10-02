@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Shield, Trash2, ShieldCheck, EyeOff, Globe, BellRing, Monitor, SlidersHorizontal, Type, Smartphone, Clock, Key, FileText, Timer } from 'lucide-react';
-import { fonts } from '@/lib/themes';
+import { Settings, X, Shield, Trash2, ShieldCheck, EyeOff, Globe, BellRing, Monitor, SlidersHorizontal, Type, Smartphone, Clock, Key, FileText, Timer, Palette } from 'lucide-react';
+import { fonts, themes, type ThemeName } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 import { useFont } from '@/contexts/font-provider';
+import { useThemeManager } from '@/contexts/theme-provider';
 import { toast } from 'sonner';
 
 import { useLanguage } from '@/contexts/language-provider';
@@ -22,11 +23,12 @@ export function SettingsDropdown({
   isCollapsed?: boolean;
   fullWidth?: boolean;
 }) {
+  const { theme, setTheme } = useThemeManager();
   const { font, setFont } = useFont();
   const { t, language, setLanguage } = useLanguage();
   const { compactMode, setCompactMode } = usePreferences();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'font' | 'security' | 'preferences' | 'language'>('preferences');
+  const [mode, setMode] = useState<'preferences' | 'theme' | 'font' | 'security' | 'language'>('preferences');
   const [privacyMode, setPrivacyMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
@@ -109,222 +111,243 @@ export function SettingsDropdown({
             transition={{ type: "spring", stiffness: 350, damping: 25 }}
             className={cn(
               "absolute z-50",
-              fullWidth && !isCollapsed ? "w-full min-w-[280px]" : "w-[280px] sm:w-[300px]",
+              fullWidth && !isCollapsed ? "w-full min-w-[280px]" : "w-[290px] sm:w-[320px]",
               isCollapsed 
                 ? "left-full bottom-0 ml-3" 
                 : cn(direction === 'up' ? 'bottom-full mb-3' : 'top-full mt-3', align === 'end' ? 'right-0' : align === 'start' ? 'left-0 sm:left-auto sm:right-0' : 'left-1/2 -translate-x-1/2')
             )}
           >
-            <div className="p-3.5 shadow-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-foreground rounded-2xl w-full flex flex-col gap-3 backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/5">
+            <div className="p-4 shadow-2xl border border-border/20 bg-[rgb(var(--card))] text-foreground rounded-2xl w-full flex flex-col gap-3 ring-1 ring-border/10 select-none">
               <div className="flex items-center justify-between px-1">
-                  <span className="text-xs font-bold uppercase tracking-widest text-foreground/50">
-                    {mode === 'preferences' ? t('settings.preferences') : mode === 'language' ? t('settings.language') : mode === 'font' ? 'Select Font' : t('settings.security')}
-                  </span>
-                  <button aria-label="Close" onClick={() => setOpen(false)} className="rounded-full p-1 text-foreground/40 hover:bg-foreground/5 hover:text-foreground transition-colors ml-auto -mt-1 -mr-1">
-                    <X className="size-4" />
-                  </button>
-                </div>
-                
-                {mode === 'preferences' && (
-                  <div className="flex flex-col gap-2">
-                    <button 
-                      onClick={() => setCompactMode(!compactMode)}
-                      className={cn(
-                        "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
-                        compactMode ? "border-accent/30 bg-accent/10 text-accent" : "border-border/10 hover:bg-foreground/5"
-                      )}
-                    >
-                      <div className={cn("p-2 rounded-lg shrink-0", compactMode ? "bg-accent/20" : "bg-foreground/5")}>
-                        <Monitor className="size-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Compact UI</span>
-                        <span className="text-[10px] opacity-70 leading-tight">Reduce padding & margins</span>
-                      </div>
-                    </button>
-
-                    <button 
-                      onClick={() => setNotifications(!notifications)}
-                      className={cn(
-                        "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
-                        notifications ? "border-accent/30 bg-accent/10 text-accent" : "border-border/10 hover:bg-foreground/5"
-                      )}
-                    >
-                      <div className={cn("p-2 rounded-lg shrink-0", notifications ? "bg-accent/20" : "bg-foreground/5")}>
-                        <BellRing className="size-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Push Notifications</span>
-                        <span className="text-[10px] opacity-70 leading-tight">Alerts for verifications</span>
-                      </div>
-                    </button>
-
-                    <button 
-                      onClick={() => setMode('language')}
-                      className="flex items-center gap-3 w-full p-3 rounded-xl border border-border/10 hover:bg-foreground/5 transition-colors text-left"
-                    >
-                      <div className="p-2 rounded-lg bg-foreground/5 shrink-0">
-                        <Globe className="size-4 text-foreground/60" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">{t('settings.language')}</span>
-                        <span className="text-[10px] text-foreground/50 leading-tight">{languageLabels[language] || language}</span>
-                      </div>
-                    </button>
-
-                    <button className="flex items-center gap-3 w-full p-3 rounded-xl border border-border/10 hover:bg-foreground/5 transition-colors text-left">
-                      <div className="p-2 rounded-lg bg-foreground/5 shrink-0">
-                        <Clock className="size-4 text-foreground/60" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Timezone</span>
-                        <span className="text-[10px] text-foreground/50 leading-tight">UTC+00:00 Auto</span>
-                      </div>
-                    </button>
-                  </div>
-                )}
-
-                {mode === 'language' && (
-                  <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto scrollbar-hide pr-1" data-lenis-prevent="true">
-                    {(Object.keys(languageLabels) as Array<keyof typeof languageLabels>).map((langCode) => (
-                      <button
-                        key={langCode}
-                        onClick={() => { setLanguage(langCode as any); setMode('preferences'); }}
-                        className={cn(
-                          'flex items-center justify-between rounded-xl border transition-all duration-300 p-3 text-left w-full',
-                          language === langCode
-                            ? 'border-accent/50 bg-accent/15 text-foreground shadow-glow ring-1 ring-accent/20'
-                            : 'border-border/10 bg-foreground/[0.02] text-foreground/60 hover:border-border/20 hover:bg-foreground/[0.06] hover:text-foreground'
-                        )}
-                      >
-                        <span className="text-sm font-semibold">{languageLabels[langCode]}</span>
-                        {language === langCode && <span className="size-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)] shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {mode === 'font' && (
-                  <div
-                    className="flex flex-col max-h-[240px] overflow-y-auto scrollbar-hide pr-1 gap-2"
-                    data-lenis-prevent="true"
-                  >
-                    {fonts.map((item) => (
-                      <button
-                        key={item.name}
-                        onClick={() => setFont(item.name)}
-                        className={cn(
-                          'flex items-center justify-between rounded-xl border transition-all duration-300 p-3 text-left w-full',
-                          font === item.name
-                            ? 'border-accent/50 bg-accent/15 text-foreground shadow-glow ring-1 ring-accent/20'
-                            : 'border-border/10 bg-foreground/[0.02] text-foreground/60 hover:border-border/20 hover:bg-foreground/[0.06] hover:text-foreground',
-                          item.variable
-                        )}
-                      >
-                        <span className="text-sm font-semibold truncate font-sans">{item.label}</span>
-                        {font === item.name && <span className="size-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)] shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {mode === 'security' && (
-                  <div className="flex flex-col gap-2">
-                    <button 
-                      onClick={() => setPrivacyMode(!privacyMode)}
-                      className={cn(
-                        "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
-                        privacyMode ? "border-accent/30 bg-accent/10 text-accent" : "border-border/10 hover:bg-foreground/5"
-                      )}
-                    >
-                      <div className={cn("p-2 rounded-lg shrink-0", privacyMode ? "bg-accent/20" : "bg-foreground/5")}>
-                        {privacyMode ? <EyeOff className="size-4" /> : <ShieldCheck className="size-4 text-foreground/60" />}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">{privacyMode ? 'Privacy Mode Active' : 'Enable Privacy Mode'}</span>
-                        <span className="text-[10px] text-foreground/50 leading-tight">Hides sensitive wallet info</span>
-                      </div>
-                    </button>
-
-                    <button 
-                      onClick={() => setTwoFactor(!twoFactor)}
-                      className={cn(
-                        "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
-                        twoFactor ? "border-success/30 bg-success/10 text-success" : "border-border/10 hover:bg-foreground/5"
-                      )}
-                    >
-                      <div className={cn("p-2 rounded-lg shrink-0", twoFactor ? "bg-success/20" : "bg-foreground/5")}>
-                        <Smartphone className="size-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Two-Factor Auth</span>
-                        <span className="text-[10px] opacity-70 leading-tight">{twoFactor ? 'Configured (App)' : 'Not configured'}</span>
-                      </div>
-                    </button>
-
-                    <button className="flex items-center gap-3 w-full p-3 rounded-xl border border-border/10 hover:bg-foreground/5 transition-colors text-left">
-                      <div className="p-2 rounded-lg bg-foreground/5 shrink-0"><Key className="size-4 text-foreground/60" /></div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">API Keys</span>
-                        <span className="text-[10px] text-foreground/50 leading-tight">Manage developer access</span>
-                      </div>
-                    </button>
-
-                    <button className="flex items-center gap-3 w-full p-3 rounded-xl border border-border/10 hover:bg-foreground/5 transition-colors text-left">
-                      <div className="p-2 rounded-lg bg-foreground/5 shrink-0"><Timer className="size-4 text-foreground/60" /></div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Auto-Lock</span>
-                        <span className="text-[10px] text-foreground/50 leading-tight">15 minutes idle</span>
-                      </div>
-                    </button>
-                    
-                    <button className="flex items-center gap-3 w-full p-3 rounded-xl border border-border/10 hover:bg-foreground/5 transition-colors text-left">
-                      <div className="p-2 rounded-lg bg-foreground/5 shrink-0"><FileText className="size-4 text-foreground/60" /></div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Audit Logs</span>
-                        <span className="text-[10px] text-foreground/50 leading-tight">View account activity</span>
-                      </div>
-                    </button>
-
-                    <button 
-                      onClick={handleClearCache}
-                      className="flex items-center gap-3 w-full p-3 rounded-xl border border-danger/20 hover:bg-danger/10 text-danger transition-colors text-left mt-2"
-                    >
-                      <div className="p-2 rounded-lg bg-danger/10 shrink-0">
-                        <Trash2 className="size-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold">Clear Local Cache</span>
-                        <span className="text-[10px] opacity-70 leading-tight">Reset preferences & reload</span>
-                      </div>
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex gap-1 pt-2 border-t border-border/10 w-full mt-1">
-                  <button 
-                    onClick={() => setMode('preferences')}
-                    title="Preferences"
-                    className={cn("flex-1 flex items-center justify-center py-2 rounded-lg transition-colors", mode === 'preferences' ? "bg-accent/10 text-accent" : "text-foreground/40 hover:bg-foreground/5 hover:text-foreground/70")}
-                  >
-                    <SlidersHorizontal className="size-4" />
-                  </button>
-                  <button 
-                    onClick={() => setMode('font')}
-                    title="Font Settings"
-                    className={cn("flex-1 flex items-center justify-center py-2 rounded-lg transition-colors", mode === 'font' ? "bg-accent/10 text-accent" : "text-foreground/40 hover:bg-foreground/5 hover:text-foreground/70")}
-                  >
-                    <Type className="size-4" />
-                  </button>
-                  <button 
-                    onClick={() => setMode('security')}
-                    title="Security & Privacy"
-                    className={cn("flex-1 flex items-center justify-center py-2 rounded-lg transition-colors", mode === 'security' ? "bg-accent/10 text-accent" : "text-foreground/40 hover:bg-foreground/5 hover:text-foreground/70")}
-                  >
-                    <Shield className="size-4" />
-                  </button>
-                </div>
+                <span className="text-xs font-bold uppercase tracking-widest text-foreground/70">
+                  {mode === 'preferences'
+                    ? t('settings.preferences')
+                    : mode === 'theme'
+                    ? 'Theme Style'
+                    : mode === 'language'
+                    ? t('settings.language')
+                    : mode === 'font'
+                    ? 'Typography'
+                    : t('settings.security')}
+                </span>
+                <button
+                  aria-label="Close"
+                  onClick={() => setOpen(false)}
+                  className="rounded-full p-1 text-foreground/50 hover:bg-foreground/10 hover:text-foreground transition-colors ml-auto -mt-1 -mr-1"
+                >
+                  <X className="size-4" />
+                </button>
               </div>
+
+              {mode === 'preferences' && (
+                <div className="flex flex-col gap-2">
+                  <button 
+                    onClick={() => setCompactMode(!compactMode)}
+                    className={cn(
+                      "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
+                      compactMode ? "border-accent/40 bg-accent/15 text-accent" : "border-border/15 bg-foreground/[0.02] hover:bg-foreground/[0.06] text-foreground"
+                    )}
+                  >
+                    <div className={cn("p-2 rounded-lg shrink-0", compactMode ? "bg-accent/20 text-accent" : "bg-foreground/5 text-foreground/70")}>
+                      <Monitor className="size-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-foreground">Compact UI</span>
+                      <span className="text-[10px] text-foreground/60 leading-tight">Reduce padding & margins</span>
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={() => setNotifications(!notifications)}
+                    className={cn(
+                      "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
+                      notifications ? "border-accent/40 bg-accent/15 text-accent" : "border-border/15 bg-foreground/[0.02] hover:bg-foreground/[0.06] text-foreground"
+                    )}
+                  >
+                    <div className={cn("p-2 rounded-lg shrink-0", notifications ? "bg-accent/20 text-accent" : "bg-foreground/5 text-foreground/70")}>
+                      <BellRing className="size-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-foreground">Push Notifications</span>
+                      <span className="text-[10px] text-foreground/60 leading-tight">Alerts for verifications</span>
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={() => setMode('theme')}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl border border-border/15 bg-foreground/[0.02] hover:bg-foreground/[0.06] transition-colors text-left text-foreground"
+                  >
+                    <div className="p-2 rounded-lg bg-foreground/5 text-foreground/70 shrink-0">
+                      <Palette className="size-4" />
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <span className="text-sm font-semibold text-foreground">Color Theme</span>
+                      <span className="text-[10px] text-foreground/60 capitalize leading-tight">{theme.replace('-', ' ')}</span>
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={() => setMode('language')}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl border border-border/15 bg-foreground/[0.02] hover:bg-foreground/[0.06] transition-colors text-left text-foreground"
+                  >
+                    <div className="p-2 rounded-lg bg-foreground/5 text-foreground/70 shrink-0">
+                      <Globe className="size-4" />
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <span className="text-sm font-semibold text-foreground">{t('settings.language')}</span>
+                      <span className="text-[10px] text-foreground/60 leading-tight">{languageLabels[language] || language}</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              {mode === 'theme' && (
+                <div className="flex flex-col gap-1.5 max-h-[260px] overflow-y-auto scrollbar-hide pr-1" data-lenis-prevent="true">
+                  {themes.map((item) => (
+                    <button
+                      key={item.name}
+                      onClick={() => setTheme(item.name as ThemeName)}
+                      className={cn(
+                        'flex items-center justify-between rounded-xl border transition-all duration-200 p-2.5 text-left w-full',
+                        theme === item.name
+                          ? 'border-accent/50 bg-accent/15 text-foreground ring-1 ring-accent/30 font-semibold'
+                          : 'border-border/10 bg-foreground/[0.02] text-foreground/70 hover:border-border/20 hover:bg-foreground/[0.06] hover:text-foreground'
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="size-3.5 rounded-full border border-black/20 shrink-0" style={{ backgroundColor: item.accent }} />
+                        <span className="text-xs font-medium text-foreground">{item.label}</span>
+                      </div>
+                      {theme === item.name && <span className="size-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)] shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mode === 'language' && (
+                <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto scrollbar-hide pr-1" data-lenis-prevent="true">
+                  {(Object.keys(languageLabels) as Array<keyof typeof languageLabels>).map((langCode) => (
+                    <button
+                      key={langCode}
+                      onClick={() => { setLanguage(langCode as any); setMode('preferences'); }}
+                      className={cn(
+                        'flex items-center justify-between rounded-xl border transition-all duration-200 p-3 text-left w-full',
+                        language === langCode
+                          ? 'border-accent/50 bg-accent/15 text-foreground ring-1 ring-accent/30'
+                          : 'border-border/10 bg-foreground/[0.02] text-foreground/70 hover:border-border/20 hover:bg-foreground/[0.06] hover:text-foreground'
+                      )}
+                    >
+                      <span className="text-xs font-semibold text-foreground">{languageLabels[langCode]}</span>
+                      {language === langCode && <span className="size-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)] shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mode === 'font' && (
+                <div
+                  className="flex flex-col max-h-[240px] overflow-y-auto scrollbar-hide pr-1 gap-2"
+                  data-lenis-prevent="true"
+                >
+                  {fonts.map((item) => (
+                    <button
+                      key={item.name}
+                      onClick={() => setFont(item.name)}
+                      className={cn(
+                        'flex items-center justify-between rounded-xl border transition-all duration-200 p-3 text-left w-full',
+                        font === item.name
+                          ? 'border-accent/50 bg-accent/15 text-foreground ring-1 ring-accent/30'
+                          : 'border-border/10 bg-foreground/[0.02] text-foreground/70 hover:border-border/20 hover:bg-foreground/[0.06] hover:text-foreground',
+                        item.variable
+                      )}
+                    >
+                      <span className="text-xs font-semibold truncate text-foreground">{item.label}</span>
+                      {font === item.name && <span className="size-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)] shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mode === 'security' && (
+                <div className="flex flex-col gap-2">
+                  <button 
+                    onClick={() => setPrivacyMode(!privacyMode)}
+                    className={cn(
+                      "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
+                      privacyMode ? "border-accent/40 bg-accent/15 text-accent" : "border-border/15 bg-foreground/[0.02] hover:bg-foreground/[0.06] text-foreground"
+                    )}
+                  >
+                    <div className={cn("p-2 rounded-lg shrink-0", privacyMode ? "bg-accent/20" : "bg-foreground/5")}>
+                      {privacyMode ? <EyeOff className="size-4" /> : <ShieldCheck className="size-4 text-foreground/70" />}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-foreground">{privacyMode ? 'Privacy Mode Active' : 'Enable Privacy Mode'}</span>
+                      <span className="text-[10px] text-foreground/60 leading-tight">Hides sensitive wallet info</span>
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={() => setTwoFactor(!twoFactor)}
+                    className={cn(
+                      "flex items-center gap-3 w-full p-3 rounded-xl border transition-colors text-left",
+                      twoFactor ? "border-success/40 bg-success/15 text-success" : "border-border/15 bg-foreground/[0.02] hover:bg-foreground/[0.06] text-foreground"
+                    )}
+                  >
+                    <div className={cn("p-2 rounded-lg shrink-0", twoFactor ? "bg-success/20" : "bg-foreground/5")}>
+                      <Smartphone className="size-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-foreground">Two-Factor Auth</span>
+                      <span className="text-[10px] text-foreground/60 leading-tight">{twoFactor ? 'Configured (App)' : 'Not configured'}</span>
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={handleClearCache}
+                    className="flex items-center gap-3 w-full p-3 rounded-xl border border-danger/25 hover:bg-danger/10 text-danger transition-colors text-left mt-1"
+                  >
+                    <div className="p-2 rounded-lg bg-danger/10 shrink-0">
+                      <Trash2 className="size-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold">Clear Local Cache</span>
+                      <span className="text-[10px] opacity-75 leading-tight">Reset preferences & reload</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              <div className="flex gap-1 pt-2 border-t border-border/15 w-full mt-1">
+                <button 
+                  onClick={() => setMode('preferences')}
+                  title="Preferences"
+                  className={cn("flex-1 flex items-center justify-center py-2 rounded-lg transition-colors", mode === 'preferences' ? "bg-accent/15 text-accent" : "text-foreground/50 hover:bg-foreground/5 hover:text-foreground")}
+                >
+                  <SlidersHorizontal className="size-4" />
+                </button>
+                <button 
+                  onClick={() => setMode('theme')}
+                  title="Theme Settings"
+                  className={cn("flex-1 flex items-center justify-center py-2 rounded-lg transition-colors", mode === 'theme' ? "bg-accent/15 text-accent" : "text-foreground/50 hover:bg-foreground/5 hover:text-foreground")}
+                >
+                  <Palette className="size-4" />
+                </button>
+                <button 
+                  onClick={() => setMode('font')}
+                  title="Font Settings"
+                  className={cn("flex-1 flex items-center justify-center py-2 rounded-lg transition-colors", mode === 'font' ? "bg-accent/15 text-accent" : "text-foreground/50 hover:bg-foreground/5 hover:text-foreground")}
+                >
+                  <Type className="size-4" />
+                </button>
+                <button 
+                  onClick={() => setMode('security')}
+                  title="Security & Privacy"
+                  className={cn("flex-1 flex items-center justify-center py-2 rounded-lg transition-colors", mode === 'security' ? "bg-accent/15 text-accent" : "text-foreground/50 hover:bg-foreground/5 hover:text-foreground")}
+                >
+                  <Shield className="size-4" />
+                </button>
+              </div>
+            </div>
           </motion.div>
         ) : null}
       </AnimatePresence>

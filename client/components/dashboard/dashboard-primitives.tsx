@@ -23,12 +23,12 @@ export function DashboardMetricCard({
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-full">
       <GlassCard className="group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-glow cursor-default h-full flex flex-col justify-between p-5">
         <div className="w-full">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground/50 truncate">
+          <div className="flex items-start justify-between gap-2 min-h-[28px]">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground/60 leading-tight">
               {label}
             </span>
             {badge ? (
-              <Badge className="border-accent/30 bg-accent/10 text-accent shadow-none text-[9px] font-semibold py-0 px-1.5 shrink-0 rounded-md uppercase tracking-wide">
+              <Badge className="border-accent/30 bg-accent/10 text-accent shadow-none text-[9px] font-semibold py-0.5 px-2 shrink-0 rounded-md uppercase tracking-wide">
                 {badge}
               </Badge>
             ) : null}
