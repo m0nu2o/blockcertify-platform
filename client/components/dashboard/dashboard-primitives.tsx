@@ -21,23 +21,25 @@ export function DashboardMetricCard({
 }) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-full">
-      <GlassCard className="group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-glow cursor-default h-full flex flex-col justify-between p-5">
-        <div className="w-full">
-          <div className="flex items-start justify-between gap-2 min-h-[28px]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground/60 leading-tight">
-              {label}
-            </span>
-            {badge ? (
-              <Badge className="border-accent/30 bg-accent/10 text-accent shadow-none text-[9px] font-semibold py-0.5 px-2 shrink-0 rounded-md uppercase tracking-wide">
-                {badge}
-              </Badge>
-            ) : null}
+      <GlassCard className="group relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-glow cursor-default h-full p-5 sm:p-6 rounded-2xl">
+        <div className="flex flex-col justify-between h-full min-h-[130px]">
+          <div>
+            <div className="flex items-start justify-between gap-3 min-h-[28px]">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-foreground/60 leading-snug">
+                {label}
+              </span>
+              {badge ? (
+                <Badge className="border-accent/30 bg-accent/10 text-accent shadow-none text-[9px] font-semibold py-0.5 px-2 rounded-full uppercase tracking-wider shrink-0 mt-0.5">
+                  {badge}
+                </Badge>
+              ) : null}
+            </div>
+            <div className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-foreground leading-none">
+              {typeof value === 'number' ? formatNumber(value) : value}
+            </div>
           </div>
-          <div className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-foreground truncate leading-none">
-            {typeof value === 'number' ? formatNumber(value) : value}
-          </div>
+          <div className="mt-4 text-xs sm:text-sm font-medium text-foreground/60 leading-relaxed">{caption}</div>
         </div>
-        <div className="mt-4 text-xs sm:text-sm font-medium text-foreground/60 leading-relaxed">{caption}</div>
       </GlassCard>
     </motion.div>
   );
