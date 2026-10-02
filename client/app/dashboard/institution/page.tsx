@@ -61,6 +61,7 @@ export default function InstitutionDashboardPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedForRevoke, setSelectedForRevoke] = useState<Set<string>>(new Set());
   const [revokingBulk, setRevokingBulk] = useState(false);
+  const [showAllCertificates, setShowAllCertificates] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     if (!session?.user.accessToken) return;
@@ -71,7 +72,7 @@ export default function InstitutionDashboardPage() {
     try {
       const [analyticsResponse, certificatesResponse, notificationsResponse] = await Promise.all([
         apiFetch<ApiResponse<InstitutionAnalytics>>('/analytics/institution', { token: session.user.accessToken }),
-        apiFetch<ApiResponse<CertificateListResponse>>('/certificates?limit=6', { token: session.user.accessToken }),
+        apiFetch<ApiResponse<CertificateListResponse>>('/certificates?limit=25', { token: session.user.accessToken }),
         apiFetch<ApiResponse<NotificationItem[]>>('/notifications', { token: session.user.accessToken }),
       ]);
 
@@ -328,88 +329,102 @@ export default function InstitutionDashboardPage() {
                 description="Use the issuance form to create your first blockchain-backed certificate for a student."
               />
             ) : (
-              <div className="grid gap-3 text-sm text-foreground/70">
-                {data.certificates.items.map((item) => (
-                  <div
-                    key={item.certificateId}
-                    className="group rounded-2xl border border-border/12 bg-foreground/[0.03] p-5 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:border-accent/30 hover:bg-accent/5 transition-all duration-200"
-                    onClick={() => setSelectedCert(item)}
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div className="flex items-start gap-3">
-                        {item.status !== 'revoked' && (
-                          <div className="pt-1" onClick={(e) => e.stopPropagation()}>
-                            <input 
-                              type="checkbox" 
-                              checked={selectedForRevoke.has(item.certificateId)}
-                              onChange={(e) => {
-                                const newSet = new Set(selectedForRevoke);
-                                if (e.target.checked) newSet.add(item.certificateId);
-                                else newSet.delete(item.certificateId);
-                                setSelectedForRevoke(newSet);
-                              }}
-                              className="size-4 rounded border-border/20 bg-foreground/[0.05] accent-destructive focus:ring-destructive/50"
-                            />
+              <div>
+                <div className="grid gap-3 text-sm text-foreground/70">
+                  {(showAllCertificates ? data.certificates.items : data.certificates.items.slice(0, 5)).map((item) => (
+                    <div
+                      key={item.certificateId}
+                      className="group rounded-2xl border border-border/12 bg-foreground/[0.03] p-5 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:border-accent/30 hover:bg-accent/5 transition-all duration-200"
+                      onClick={() => setSelectedCert(item)}
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="flex items-start gap-3">
+                          {item.status !== 'revoked' && (
+                            <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                              <input 
+                                type="checkbox" 
+                                checked={selectedForRevoke.has(item.certificateId)}
+                                onChange={(e) => {
+                                  const newSet = new Set(selectedForRevoke);
+                                  if (e.target.checked) newSet.add(item.certificateId);
+                                  else newSet.delete(item.certificateId);
+                                  setSelectedForRevoke(newSet);
+                                }}
+                                className="size-4 rounded border-border/20 bg-foreground/[0.05] accent-destructive focus:ring-destructive/50"
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              <span>{item.studentName}</span>
+                              <ChevronRight className="size-4 text-foreground/40 group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                            </div>
+                            <div className="mt-1 flex items-center gap-2 text-foreground/60">
+                              <span className="font-mono text-xs">{item.certificateId}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); void copyCertId(item.certificateId); }}
+                                className="text-foreground/40 hover:text-accent transition"
+                                aria-label="Copy Certificate ID"
+                              >
+                                {copiedId === item.certificateId ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+                              </button>
+                            </div>
+                            <div className="text-foreground/55 mt-0.5">{item.degree}</div>
                           </div>
-                        )}
-                        <div>
-                          <div className="font-semibold text-foreground flex items-center gap-2">
-                            <span>{item.studentName}</span>
-                            <ChevronRight className="size-4 text-foreground/40 group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
-                          </div>
-                          <div className="mt-1 flex items-center gap-2 text-foreground/60">
-                            <span className="font-mono text-xs">{item.certificateId}</span>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); void copyCertId(item.certificateId); }}
-                              className="text-foreground/40 hover:text-accent transition"
-                              aria-label="Copy Certificate ID"
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <StatusBadge status={item.status} />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 rounded-xl text-xs gap-1.5 border-border/20 hover:border-accent/40 hover:bg-accent/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setSelectedCert(item); }}
+                          >
+                            <ShieldCheck className="size-3.5 text-accent" />
+                            <span>Verify</span>
+                          </Button>
+                          {item.status !== 'revoked' && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              disabled={revoking === item.certificateId}
+                              onClick={(e) => { e.stopPropagation(); void revokeCertificate(item.certificateId); }}
                             >
-                              {copiedId === item.certificateId ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-                            </button>
-                          </div>
-                          <div className="text-foreground/55 mt-0.5">{item.degree}</div>
+                              <ShieldOff className="size-3.5" />
+                              {revoking === item.certificateId ? 'Revoking...' : 'Revoke'}
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <StatusBadge status={item.status} />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 rounded-xl text-xs gap-1.5 border-border/20 hover:border-accent/40 hover:bg-accent/10 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); setSelectedCert(item); }}
-                        >
-                          <ShieldCheck className="size-3.5 text-accent" />
-                          <span>Verify</span>
-                        </Button>
-                        {item.status !== 'revoked' && (
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            disabled={revoking === item.certificateId}
-                            onClick={(e) => { e.stopPropagation(); void revokeCertificate(item.certificateId); }}
-                          >
-                            <ShieldOff className="size-3.5" />
-                            {revoking === item.certificateId ? 'Revoking...' : 'Revoke'}
-                          </Button>
-                        )}
+                      <div className="mt-4 grid gap-3 grid-cols-1 md:grid-cols-3 pt-3 border-t border-border/10">
+                        <div className="min-w-0">
+                          <div className="text-xs uppercase tracking-wide text-foreground/50">Course</div>
+                          <div className="mt-1 text-foreground/80 truncate">{item.course}</div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs uppercase tracking-wide text-foreground/50">Issued</div>
+                          <div className="mt-1 text-foreground/80">{formatDate(item.issueDate)}</div>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs uppercase tracking-wide text-foreground/50">Verifications</div>
+                          <div className="mt-1 text-foreground/80">{formatNumber(item.verificationCount)}</div>
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-4 grid gap-3 grid-cols-1 md:grid-cols-3 pt-3 border-t border-border/10">
-                      <div className="min-w-0">
-                        <div className="text-xs uppercase tracking-wide text-foreground/50">Course</div>
-                        <div className="mt-1 text-foreground/80 truncate">{item.course}</div>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs uppercase tracking-wide text-foreground/50">Issued</div>
-                        <div className="mt-1 text-foreground/80">{formatDate(item.issueDate)}</div>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs uppercase tracking-wide text-foreground/50">Verifications</div>
-                        <div className="mt-1 text-foreground/80">{formatNumber(item.verificationCount)}</div>
-                      </div>
-                    </div>
+                  ))}
+                </div>
+                {data.certificates.items.length > 5 && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAllCertificates(!showAllCertificates)}
+                      className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
+                    >
+                      {showAllCertificates ? 'Show less' : `See more (${data.certificates.items.length - 5} more)`}
+                    </Button>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </DashboardSection>

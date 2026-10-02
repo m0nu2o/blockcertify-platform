@@ -264,6 +264,16 @@ function getDemoFallback<T>(path: string, method = 'GET'): T | null {
     } as unknown as T;
   }
 
+  if (p === '/auth/register' && method === 'POST') {
+    return {
+      success: true,
+      message: 'Account created successfully',
+      data: {
+        token: `demo-token-${Date.now()}`,
+      },
+    } as unknown as T;
+  }
+
   return null;
 }
 

@@ -163,20 +163,26 @@ export default function PricingPage() {
 
           {/* Administrator Access Banner */}
           {isAdmin && (
-            <div className="mx-auto max-w-3xl mb-10 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-5 text-sky-200 flex items-start gap-3 shadow-glass">
-              <Sparkles className="size-5 shrink-0 mt-0.5 text-sky-400" />
+            <div className="mx-auto max-w-3xl mb-10 rounded-2xl border border-accent/40 bg-accent/15 p-5 text-foreground flex items-start gap-3 shadow-glass">
+              <Sparkles className="size-5 shrink-0 mt-0.5 text-accent" />
               <div className="text-sm leading-relaxed flex-1">
-                <span className="font-semibold text-sky-300">Administrator Privileges Active:</span> As a platform administrator, your account is exempt from subscription limits. You have full access to issue certificates, bulk issue, and manage subscriptions across all institutions without needing to subscribe to a plan.
+                <span className="font-bold text-accent">Administrator Privileges Active:</span>{' '}
+                <span className="text-foreground/90 font-medium">
+                  As a platform administrator, your account is exempt from subscription limits. You have full access to issue certificates, bulk issue, and manage subscriptions across all institutions without needing to subscribe to a plan.
+                </span>
               </div>
             </div>
           )}
 
           {/* Pending Approval Banner */}
           {!isAdmin && pendingRequest && (
-            <div className="mx-auto max-w-3xl mb-10 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200 flex items-start gap-3 shadow-glass">
-              <Clock className="size-5 shrink-0 mt-0.5 text-amber-400 animate-pulse" />
+            <div className="mx-auto max-w-3xl mb-10 rounded-2xl border border-warning/40 bg-warning/15 p-4 text-foreground flex items-start gap-3 shadow-glass">
+              <Clock className="size-5 shrink-0 mt-0.5 text-warning animate-pulse" />
               <div className="text-sm leading-relaxed flex-1">
-                <span className="font-semibold text-amber-300">Pending Administrator Approval:</span> Your request for the <strong className="text-white underline">{pendingRequest.tier}</strong> plan submitted on {new Date(pendingRequest.requestedAt).toLocaleDateString()} is awaiting administrator review. Features will unlock once approved.
+                <span className="font-bold text-warning">Pending Administrator Approval:</span>{' '}
+                <span className="text-foreground/90 font-medium">
+                  Your request for the <strong className="text-foreground font-bold underline">{pendingRequest.tier}</strong> plan submitted on {new Date(pendingRequest.requestedAt).toLocaleDateString()} is awaiting administrator review. Features will unlock once approved.
+                </span>
               </div>
               <Button
                 variant="ghost"

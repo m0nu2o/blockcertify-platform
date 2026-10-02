@@ -91,7 +91,13 @@ export function RegisterForm() {
       setLoading(true);
       try {
         await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(values) });
-        await signIn('credentials', { email: values.email, password: values.password, redirect: false });
+        await signIn('credentials', { 
+          email: values.email, 
+          password: values.password, 
+          name: values.name,
+          role: values.role,
+          redirect: false 
+        });
         toast.success('Account created successfully');
         router.push('/dashboard');
       } catch (error) {

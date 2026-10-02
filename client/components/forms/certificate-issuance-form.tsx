@@ -138,7 +138,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
     loadCertificateCount();
   }, [loadCertificateCount]);
 
-  const isLimitReached = tier === 'free' && issuedCount >= 3;
+  const isLimitReached = userRole !== 'admin' && session?.user?.subscriptionTier !== 'Enterprise' && tier === 'free' && issuedCount >= 3;
 
   const onChange = (key: keyof typeof defaultState, value: string | number) => setValues((current) => ({ ...current, [key]: value }));
 

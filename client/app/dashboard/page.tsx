@@ -70,6 +70,8 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAllCertificates, setShowAllCertificates] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     if (!session?.user.accessToken) return;
@@ -81,7 +83,7 @@ export default function DashboardPage() {
       const [analyticsResponse, notificationsResponse, certificatesResponse] = await Promise.all([
         apiFetch<ApiResponse<OverviewAnalytics>>('/analytics/overview', { token: session.user.accessToken }),
         apiFetch<ApiResponse<NotificationItem[]>>('/notifications', { token: session.user.accessToken }),
-        apiFetch<ApiResponse<CertificateListResponse>>('/certificates?limit=5', { token: session.user.accessToken }),
+        apiFetch<ApiResponse<CertificateListResponse>>('/certificates?limit=25', { token: session.user.accessToken }),
       ]);
 
       setData({
@@ -320,7 +322,11 @@ export default function DashboardPage() {
         <DashboardSection
           title="Recent certificates"
           description="Newest certificate records available to your role."
-          action={<Button variant="secondary" size="sm">Latest 5</Button>}
+          action={
+            <Button variant="secondary" size="sm" asChild>
+              <Link href="/certificates">View all</Link>
+            </Button>
+          }
         >
           {data.certificates.items.length === 0 ? (
             <EmptyListState
@@ -328,32 +334,46 @@ export default function DashboardPage() {
               description="Once institutions start issuing, the latest certificate IDs and lifecycle states will surface here."
             />
           ) : (
-            <div className="grid gap-4 text-sm text-foreground/70">
-              {data.certificates.items.map((item) => (
-                <div key={item.certificateId} className="group rounded-[2rem] border border-border/12 bg-foreground/[0.03] p-5 transition-all duration-300 hover:border-accent/30 hover:bg-accent/5 hover:-translate-y-0.5 hover:shadow-xl">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <div className="font-semibold text-foreground">{item.studentName}</div>
-                      <div className="mt-1 text-foreground/60">{item.certificateId} · {item.degree}</div>
+            <div>
+              <div className="grid gap-4 text-sm text-foreground/70">
+                {(showAllCertificates ? data.certificates.items : data.certificates.items.slice(0, 4)).map((item) => (
+                  <div key={item.certificateId} className="group rounded-[2rem] border border-border/12 bg-foreground/[0.03] p-5 transition-all duration-300 hover:border-accent/30 hover:bg-accent/5 hover:-translate-y-0.5 hover:shadow-xl">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="font-semibold text-foreground">{item.studentName}</div>
+                        <div className="mt-1 text-foreground/60">{item.certificateId} · {item.degree}</div>
+                      </div>
+                      <StatusBadge status={item.status} />
                     </div>
-                    <StatusBadge status={item.status} />
+                    <div className="mt-4 grid gap-2 text-xs uppercase tracking-wide text-foreground/55 grid-cols-1 md:grid-cols-3">
+                      <div className="min-w-0">
+                        <div>Institution</div>
+                        <div className="mt-1 text-sm normal-case tracking-normal text-foreground/75 truncate">{item.institutionName}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div>Course</div>
+                        <div className="mt-1 text-sm normal-case tracking-normal text-foreground/75 truncate">{item.course}</div>
+                      </div>
+                      <div className="min-w-0">
+                        <div>Issued</div>
+                        <div className="mt-1 text-sm normal-case tracking-normal text-foreground/75">{formatDate(item.issueDate)}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-4 grid gap-2 text-xs uppercase tracking-wide text-foreground/55 grid-cols-1 md:grid-cols-3">
-                    <div className="min-w-0">
-                      <div>Institution</div>
-                      <div className="mt-1 text-sm normal-case tracking-normal text-foreground/75 truncate">{item.institutionName}</div>
-                    </div>
-                    <div className="min-w-0">
-                      <div>Course</div>
-                      <div className="mt-1 text-sm normal-case tracking-normal text-foreground/75 truncate">{item.course}</div>
-                    </div>
-                    <div className="min-w-0">
-                      <div>Issued</div>
-                      <div className="mt-1 text-sm normal-case tracking-normal text-foreground/75">{formatDate(item.issueDate)}</div>
-                    </div>
-                  </div>
+                ))}
+              </div>
+              {data.certificates.items.length > 4 && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllCertificates(!showAllCertificates)}
+                    className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
+                  >
+                    {showAllCertificates ? 'Show less' : `See more (${data.certificates.items.length - 4} more)`}
+                  </Button>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </DashboardSection>
@@ -369,26 +389,40 @@ export default function DashboardPage() {
               description="System notices, issuance updates, and student-facing events will appear here when available."
             />
           ) : (
-            <div className="grid gap-4 text-sm text-foreground/70">
-              {data.notifications.slice(0, 5).map((item) => (
-                <div 
-                  key={item._id} 
-                  onClick={() => !item.read && void handleMarkAsRead(item._id)}
-                  className={cn(
-                    "group rounded-3xl border border-border/12 bg-foreground/[0.03] p-4 transition-all duration-300 hover:border-accent/30 hover:bg-accent/5 hover:-translate-y-0.5 hover:shadow-lg",
-                    !item.read && "cursor-pointer active:scale-[0.99]"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-foreground">{item.title}</div>
-                      <div className="mt-1 leading-6 text-foreground/65">{item.message}</div>
+            <div>
+              <div className="grid gap-4 text-sm text-foreground/70">
+                {(showAllNotifications ? data.notifications : data.notifications.slice(0, 4)).map((item) => (
+                  <div 
+                    key={item._id} 
+                    onClick={() => !item.read && void handleMarkAsRead(item._id)}
+                    className={cn(
+                      "group rounded-3xl border border-border/12 bg-foreground/[0.03] p-4 transition-all duration-300 hover:border-accent/30 hover:bg-accent/5 hover:-translate-y-0.5 hover:shadow-lg",
+                      !item.read && "cursor-pointer active:scale-[0.99]"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-foreground">{item.title}</div>
+                        <div className="mt-1 leading-6 text-foreground/65">{item.message}</div>
+                      </div>
+                      <StatusBadge status={item.read ? 'read' : 'unread'} />
                     </div>
-                    <StatusBadge status={item.read ? 'read' : 'unread'} />
+                    {item.createdAt ? <div className="mt-3 text-xs text-foreground/55">{formatDate(item.createdAt)}</div> : null}
                   </div>
-                  {item.createdAt ? <div className="mt-3 text-xs text-foreground/55">{formatDate(item.createdAt)}</div> : null}
+                ))}
+              </div>
+              {data.notifications.length > 4 && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllNotifications(!showAllNotifications)}
+                    className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
+                  >
+                    {showAllNotifications ? 'Show less' : `See more (${data.notifications.length - 4} more)`}
+                  </Button>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </DashboardSection>
@@ -405,7 +439,7 @@ export default function DashboardPage() {
             description="Institution rankings will appear as soon as certificate activity is recorded in the platform."
           />
         ) : (
-          <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-thin">
+          <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-hide">
             <table className="w-full text-left text-sm min-w-[600px]">
               <thead className="bg-foreground/[0.05] text-foreground/55">
                 <tr>

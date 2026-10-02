@@ -126,6 +126,10 @@ export default function AdminDashboardPage() {
   const [bulkVerifyLoading, setBulkVerifyLoading] = useState(false);
   const [bulkVerifyResults, setBulkVerifyResults] = useState<BulkVerifyResult[] | null>(null);
   const [reconciling, setReconciling] = useState(false);
+  const [showAllInstitutions, setShowAllInstitutions] = useState(false);
+  const [showAllSubscriptions, setShowAllSubscriptions] = useState(false);
+  const [showAllAuditLogs, setShowAllAuditLogs] = useState(false);
+  const [showAllVerificationLogs, setShowAllVerificationLogs] = useState(false);
 
   const handleReconcile = async () => {
     if (!session?.user.accessToken) return;
@@ -496,54 +500,74 @@ export default function AdminDashboardPage() {
           value={data.analytics.stats.transactions}
           caption="Tracked blockchain issue, update, and revoke operations."
         />
+        <DashboardMetricCard
+          label="Registered students"
+          value={data.analytics.stats.students}
+          caption="Active student learners with anchored credentials."
+          badge="learners"
+        />
       </div>
 
       <DashboardSection title="Institutions" description="Approve pending institutions or suspend ones that need to be paused.">
         {(data.institutions ?? []).length === 0 ? (
           <EmptyListState title="No institutions yet" description="Institutions will appear here once they register." />
         ) : (
-          <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-thin">
-            <table className="w-full text-left text-sm min-w-[800px]">
-              <thead className="bg-foreground/[0.05] text-foreground/60">
-                <tr>
-                  <th className="px-4 py-3 whitespace-nowrap">Institution</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Email</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Status</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Issued</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.institutions ?? []).map((institution) => (
-                  <tr key={institution._id} className="border-t border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-colors duration-150 cursor-default">
-                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{institution.name}</td>
-                    <td className="px-4 py-3 text-foreground/70 whitespace-nowrap">{institution.email}</td>
-                    <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={institution.status} /></td>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatNumber(institution.stats?.certificatesIssued ?? 0)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={institutionActionId === institution._id || institution.status === 'approved'}
-                          onClick={() => void approveInstitution(institution._id)}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          disabled={institutionActionId === institution._id || institution.status === 'suspended'}
-                          onClick={() => void suspendInstitution(institution._id)}
-                        >
-                          Suspend
-                        </Button>
-                      </div>
-                    </td>
+          <div>
+            <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-hide">
+              <table className="w-full text-left text-sm min-w-[800px]">
+                <thead className="bg-foreground/[0.05] text-foreground/60">
+                  <tr>
+                    <th className="px-4 py-3 whitespace-nowrap">Institution</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Email</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Issued</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(showAllInstitutions ? (data.institutions ?? []) : (data.institutions ?? []).slice(0, 5)).map((institution) => (
+                    <tr key={institution._id} className="border-t border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-colors duration-150 cursor-default">
+                      <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{institution.name}</td>
+                      <td className="px-4 py-3 text-foreground/70 whitespace-nowrap">{institution.email}</td>
+                      <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={institution.status} /></td>
+                      <td className="px-4 py-3 whitespace-nowrap">{formatNumber(institution.stats?.certificatesIssued ?? 0)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={institutionActionId === institution._id || institution.status === 'approved'}
+                            onClick={() => void approveInstitution(institution._id)}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            disabled={institutionActionId === institution._id || institution.status === 'suspended'}
+                            onClick={() => void suspendInstitution(institution._id)}
+                          >
+                            Suspend
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(data.institutions ?? []).length > 5 && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllInstitutions(!showAllInstitutions)}
+                  className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
+                >
+                  {showAllInstitutions ? 'Show less' : `See more (${data.institutions.length - 5} more)`}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </DashboardSection>
@@ -575,105 +599,126 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {((data.subscriptions ?? []).filter((sub) => subscriptionFilter === 'all' || sub.status === subscriptionFilter)).length === 0 ? (
-          <EmptyListState
-            title="No subscription requests found"
-            description={
-              subscriptionFilter === 'pending'
-                ? 'There are currently no pending plan upgrade requests.'
-                : 'Subscription requests from users will appear here.'
-            }
-          />
-        ) : (
-          <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-thin">
-            <table className="w-full text-left text-sm min-w-[800px]">
-              <thead className="bg-foreground/[0.05] text-foreground/60">
-                <tr>
-                  <th className="px-4 py-3 whitespace-nowrap">User</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Institution</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Requested Plan</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Status</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Date</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.subscriptions ?? [])
-                  .filter((sub) => subscriptionFilter === 'all' || sub.status === subscriptionFilter)
-                  .map((sub) => (
-                    <tr
-                      key={sub._id}
-                      className="border-t border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-colors duration-150 cursor-default"
-                    >
-                      <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
-                        <div>{sub.user?.name || 'Unknown User'}</div>
-                        <div className="text-xs text-foreground/50">{sub.user?.email || 'N/A'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-foreground/80 whitespace-nowrap">
-                        {sub.institution?.name || 'Individual / None'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            sub.tier === 'Enterprise'
-                              ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                              : sub.tier === 'Growth'
-                              ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30'
-                              : 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
-                          }`}
-                        >
-                          {sub.tier}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <StatusBadge status={sub.status} />
-                        {sub.status === 'rejected' && sub.rejectionReason && (
-                          <div className="text-[11px] text-danger/80 mt-0.5 max-w-[200px] truncate" title={sub.rejectionReason}>
-                            Reason: {sub.rejectionReason}
-                          </div>
-                        )}
-                        {sub.status === 'active' && sub.expiresAt && (
-                          <div className="text-[11px] text-foreground/50 mt-0.5">
-                            Exp: {new Date(sub.expiresAt).toLocaleDateString()}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-foreground/60 whitespace-nowrap">
-                        {new Date(sub.requestedAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {sub.status === 'pending' ? (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={subscriptionActionId === sub._id}
-                              onClick={() => void approveSubscription(sub._id)}
-                              className="bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/30"
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              disabled={subscriptionActionId === sub._id}
-                              onClick={() => void rejectSubscription(sub._id)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-foreground/40 italic">
-                            {sub.status === 'active' ? 'Active' : 'Closed'}
-                          </span>
-                        )}
-                      </td>
+        {(() => {
+          const filteredSubs = (data.subscriptions ?? []).filter((sub) => subscriptionFilter === 'all' || sub.status === subscriptionFilter);
+          if (filteredSubs.length === 0) {
+            return (
+              <EmptyListState
+                title="No subscription requests found"
+                description={
+                  subscriptionFilter === 'pending'
+                    ? 'There are currently no pending plan upgrade requests.'
+                    : 'Subscription requests from users will appear here.'
+                }
+              />
+            );
+          }
+
+          const visibleSubs = showAllSubscriptions ? filteredSubs : filteredSubs.slice(0, 5);
+
+          return (
+            <div>
+              <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-hide">
+                <table className="w-full text-left text-sm min-w-[800px]">
+                  <thead className="bg-foreground/[0.05] text-foreground/60">
+                    <tr>
+                      <th className="px-4 py-3 whitespace-nowrap">User</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Institution</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Requested Plan</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Status</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Date</th>
+                      <th className="px-4 py-3 whitespace-nowrap">Actions</th>
                     </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  </thead>
+                  <tbody>
+                    {visibleSubs.map((sub) => (
+                      <tr
+                        key={sub._id}
+                        className="border-t border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-colors duration-150 cursor-default"
+                      >
+                        <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                          <div>{sub.user?.name || 'Unknown User'}</div>
+                          <div className="text-xs text-foreground/50">{sub.user?.email || 'N/A'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-foreground/80 whitespace-nowrap">
+                          {sub.institution?.name || 'Individual / None'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              sub.tier === 'Enterprise'
+                                ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                : sub.tier === 'Growth'
+                                ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30'
+                                : 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+                            }`}
+                          >
+                            {sub.tier}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <StatusBadge status={sub.status} />
+                          {sub.status === 'rejected' && sub.rejectionReason && (
+                            <div className="text-[11px] text-danger/80 mt-0.5 max-w-[200px] truncate" title={sub.rejectionReason}>
+                              Reason: {sub.rejectionReason}
+                            </div>
+                          )}
+                          {sub.status === 'active' && sub.expiresAt && (
+                            <div className="text-[11px] text-foreground/50 mt-0.5">
+                              Exp: {new Date(sub.expiresAt).toLocaleDateString()}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-foreground/60 whitespace-nowrap">
+                          {new Date(sub.requestedAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {sub.status === 'pending' ? (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                disabled={subscriptionActionId === sub._id}
+                                onClick={() => void approveSubscription(sub._id)}
+                                className="bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/30"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                disabled={subscriptionActionId === sub._id}
+                                onClick={() => void rejectSubscription(sub._id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-foreground/40 italic">
+                              {sub.status === 'active' ? 'Active' : 'Closed'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {filteredSubs.length > 5 && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllSubscriptions(!showAllSubscriptions)}
+                    className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
+                  >
+                    {showAllSubscriptions ? 'Show less' : `See more (${filteredSubs.length - 5} more)`}
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </DashboardSection>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -701,7 +746,7 @@ export default function AdminDashboardPage() {
             </Button>
           </div>
           {bulkVerifyResults ? (
-            <div className="mt-4 overflow-x-auto rounded-2xl border border-border/12 scrollbar-thin">
+            <div className="mt-4 overflow-x-auto rounded-2xl border border-border/12 scrollbar-hide">
               <table className="w-full text-left text-sm min-w-[400px]">
                 <thead className="bg-foreground/[0.05] text-foreground/60">
                   <tr>
@@ -739,7 +784,7 @@ export default function AdminDashboardPage() {
               description="Rankings will appear after institutions begin issuing certificates on the platform."
             />
           ) : (
-            <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-thin">
+            <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-hide">
               <table className="w-full text-left text-sm min-w-[600px]">
                 <thead className="bg-foreground/[0.05] text-foreground/60">
                   <tr>
@@ -836,21 +881,35 @@ export default function AdminDashboardPage() {
             description="Audit events will appear here after users start authenticating and performing tracked actions."
           />
         ) : (
-          <div className="grid gap-4 text-sm text-foreground/70 md:grid-cols-2">
-            {(data.auditLogs ?? []).slice(0, 8).map((log) => (
-              <div key={log._id} className="rounded-3xl border border-border/12 bg-foreground/[0.03] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-foreground">{log.action}</div>
-                    <div className="mt-1 text-foreground/65">{log.actorEmail || 'System actor'} · {log.entity || 'Unknown entity'}</div>
+          <div>
+            <div className="grid gap-4 text-sm text-foreground/70 md:grid-cols-2">
+              {(showAllAuditLogs ? (data.auditLogs ?? []) : (data.auditLogs ?? []).slice(0, 6)).map((log) => (
+                <div key={log._id} className="rounded-3xl border border-border/12 bg-foreground/[0.03] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-foreground">{log.action}</div>
+                      <div className="mt-1 text-foreground/65">{log.actorEmail || 'System actor'} · {log.entity || 'Unknown entity'}</div>
+                    </div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border/12 bg-foreground/[0.05] px-3 py-1 text-xs text-foreground/60">
+                      <TrendingUp className="size-3.5" /> Logged
+                    </div>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-border/12 bg-foreground/[0.05] px-3 py-1 text-xs text-foreground/60">
-                    <TrendingUp className="size-3.5" /> Logged
-                  </div>
+                  <div className="mt-3 text-xs text-foreground/50">{new Date(log.createdAt).toLocaleString()}</div>
                 </div>
-                <div className="mt-3 text-xs text-foreground/50">{new Date(log.createdAt).toLocaleString()}</div>
+              ))}
+            </div>
+            {(data.auditLogs ?? []).length > 6 && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllAuditLogs(!showAllAuditLogs)}
+                  className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
+                >
+                  {showAllAuditLogs ? 'Show less' : `See more (${data.auditLogs.length - 6} more)`}
+                </Button>
               </div>
-            ))}
+            )}
           </div>
         )}
       </DashboardSection>
@@ -862,27 +921,41 @@ export default function AdminDashboardPage() {
             description="Verification attempts will appear here once certificates start being checked."
           />
         ) : (
-          <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-thin">
-            <table className="w-full text-left text-sm min-w-[600px]">
-              <thead className="bg-foreground/[0.05] text-foreground/60">
-                <tr>
-                  <th className="px-4 py-3 whitespace-nowrap">Certificate ID</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Method</th>
-                  <th className="px-4 py-3 whitespace-nowrap">Result</th>
-                  <th className="px-4 py-3 whitespace-nowrap">When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data.verificationLogs ?? []).slice(0, 10).map((log) => (
-                  <tr key={log._id} className="border-t border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-colors duration-150 cursor-default">
-                    <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{log.certificateId}</td>
-                    <td className="px-4 py-3 capitalize text-foreground/70 whitespace-nowrap">{log.method}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{log.valid ? <span className="text-success">Valid</span> : <span className="text-danger">Invalid</span>}</td>
-                    <td className="px-4 py-3 text-xs text-foreground/55 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+          <div>
+            <div className="overflow-x-auto rounded-3xl border border-border/12 scrollbar-hide">
+              <table className="w-full text-left text-sm min-w-[600px]">
+                <thead className="bg-foreground/[0.05] text-foreground/60">
+                  <tr>
+                    <th className="px-4 py-3 whitespace-nowrap">Certificate ID</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Method</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Result</th>
+                    <th className="px-4 py-3 whitespace-nowrap">When</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(showAllVerificationLogs ? (data.verificationLogs ?? []) : (data.verificationLogs ?? []).slice(0, 5)).map((log) => (
+                    <tr key={log._id} className="border-t border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] transition-colors duration-150 cursor-default">
+                      <td className="px-4 py-3 font-medium text-foreground whitespace-nowrap">{log.certificateId}</td>
+                      <td className="px-4 py-3 capitalize text-foreground/70 whitespace-nowrap">{log.method}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{log.valid ? <span className="text-success">Valid</span> : <span className="text-danger">Invalid</span>}</td>
+                      <td className="px-4 py-3 text-xs text-foreground/55 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(data.verificationLogs ?? []).length > 5 && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllVerificationLogs(!showAllVerificationLogs)}
+                  className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
+                >
+                  {showAllVerificationLogs ? 'Show less' : `See more (${data.verificationLogs.length - 5} more)`}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </DashboardSection>
