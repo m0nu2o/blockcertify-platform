@@ -1,1 +1,1 @@
-{"framework": "nextjs", "buildCommand": "next build", "outputDirectory": ".next"}
+{"name": "blockcertify", "framework": "nextjs", "buildCommand": "next build", "outputDirectory": ".next"}

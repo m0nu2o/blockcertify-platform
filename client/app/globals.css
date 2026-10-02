@@ -4,9 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
-@import '../../styles/design-tokens.css';
-
 :root {
+  --radius-xl: 28px;
+  --glass-opacity: 0.08;
+  --glass-border: rgba(255,255,255,0.12);
+  --shadow-premium: 0 20px 80px rgba(15,23,42,0.18);
   color-scheme: dark;
   --background: 2 4 10;
   --foreground: 255 255 255;
