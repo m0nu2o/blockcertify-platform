@@ -62,16 +62,26 @@ export const createStudent = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const listStudents = asyncHandler(async (req: Request, res: Response) => {
-  const institutionId = await resolveAuthorizedInstitutionId(req.user, req.query.institutionId as string | undefined);
-  const search = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const query: Record<string, unknown> = {};
 
-  const query: Record<string, unknown> = { institution: institutionId };
+  if (req.user?.role === 'admin') {
+    if (req.query.institutionId) {
+      query.institution = req.query.institutionId;
+    }
+  } else {
+    const institutionId = await resolveAuthorizedInstitutionId(req.user, req.query.institutionId as string | undefined);
+    query.institution = institutionId;
+  }
+
+  const search = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   if (search) {
     const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     query.$or = [
       { name: { $regex: escaped, $options: 'i' } },
       { studentId: { $regex: escaped, $options: 'i' } },
       { email: { $regex: escaped, $options: 'i' } },
+      { degree: { $regex: escaped, $options: 'i' } },
+      { course: { $regex: escaped, $options: 'i' } },
     ];
   }
 
@@ -80,8 +90,12 @@ export const listStudents = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const getStudentById = asyncHandler(async (req: Request, res: Response) => {
-  const institutionId = await resolveAuthorizedInstitutionId(req.user);
-  const student = await Student.findOne({ _id: req.params.id, institution: institutionId });
+  const query: Record<string, unknown> = { _id: req.params.id };
+  if (req.user?.role !== 'admin') {
+    const institutionId = await resolveAuthorizedInstitutionId(req.user);
+    query.institution = institutionId;
+  }
+  const student = await Student.findOne(query);
   if (!student) {
     throw new ApiError(404, 'Student not found in your institution');
   }

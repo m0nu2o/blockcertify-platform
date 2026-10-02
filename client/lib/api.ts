@@ -154,6 +154,39 @@ function getDemoFallback<T>(path: string, method = 'GET'): T | null {
     } as unknown as T;
   }
 
+  if (p === '/students') {
+    const searchParams = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null;
+    const query = searchParams?.get('q')?.trim().toLowerCase() || '';
+    const allStudents = (seedData.students || []).map((s) => ({
+      _id: s._id,
+      name: s.name,
+      studentId: s.studentId,
+      email: s.email,
+      degree: s.degree,
+      course: s.course,
+      department: s.department,
+      graduationYear: s.graduationYear,
+    }));
+    const filtered = query
+      ? allStudents.filter(
+          (s) =>
+            s.name.toLowerCase().includes(query) ||
+            s.studentId.toLowerCase().includes(query) ||
+            s.email.toLowerCase().includes(query) ||
+            (s.degree && s.degree.toLowerCase().includes(query)) ||
+            (s.course && s.course.toLowerCase().includes(query))
+        )
+      : allStudents;
+    return {
+      success: true,
+      message: 'Students retrieved',
+      data: {
+        items: filtered,
+        total: filtered.length,
+      },
+    } as unknown as T;
+  }
+
   if (p === '/admin/subscriptions') {
     const isApproved = approvedSet.has('sub-6abf849baa885c302719d1b5') || approvedSet.has('sub-1');
     return {
