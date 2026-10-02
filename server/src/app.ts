@@ -26,7 +26,25 @@ import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 export const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+const allowedOrigins = [
+  env.CLIENT_URL,
+  'http://localhost:3000',
+  'http://localhost:3001',
+  /^https:\/\/blockcertify[a-z0-9\-]*\.vercel\.app$/,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    const allowed = allowedOrigins.some((o) =>
+      typeof o === 'string' ? o === origin : (o as RegExp).test(origin)
+    );
+    if (allowed) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} is not allowed`));
+  },
+  credentials: true,
+}));
 app.use(globalRateLimiter);
 app.use(compression());
 app.use(cookieParser());

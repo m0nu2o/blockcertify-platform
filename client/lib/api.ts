@@ -424,29 +424,99 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
     } as unknown as T;
   }
 
-  // Verification Fallback (Allows instant public verification of any seed certificate)
+  // Verification Fallback — searches by the actual ID/hash the user entered
   if (p.startsWith('/verification/')) {
-    const cert = seedData.certificates[0];
+    const verifyType = p.split('/')[2]; // 'id' | 'hash' | 'transaction' | 'qr'
+
+    // Parse the search key from the request body
+    let searchKey = '';
+    if (body) {
+      try {
+        const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+        searchKey = (
+          parsed.certificateId ||
+          parsed.hash ||
+          parsed.transactionHash ||
+          parsed.payload ||
+          ''
+        ).toString().trim().toUpperCase();
+      } catch { /* ignore */ }
+    }
+
+    // Build a unified certificate pool: locally issued first, then seed data
+    const allCerts = [...localCerts, ...(seedData.certificates || [])];
+    const certMap = new Map<string, any>();
+    for (const c of allCerts) {
+      if (c.certificateId && !certMap.has(c.certificateId.toUpperCase())) {
+        certMap.set(c.certificateId.toUpperCase(), c);
+      }
+    }
+
+    // Find a match based on verification type
+    let found: any = null;
+    if (searchKey) {
+      if (verifyType === 'id') {
+        found = certMap.get(searchKey);
+      } else if (verifyType === 'hash') {
+        found = allCerts.find(
+          (c) =>
+            c.fileHash?.toUpperCase() === searchKey ||
+            c.metadataHash?.toUpperCase() === searchKey
+        );
+      } else if (verifyType === 'transaction') {
+        found = allCerts.find(
+          (c) => c.transactionHash?.toUpperCase() === searchKey
+        );
+      } else {
+        // QR / generic — try all fields
+        found =
+          certMap.get(searchKey) ||
+          allCerts.find(
+            (c) =>
+              c.fileHash?.toUpperCase() === searchKey ||
+              c.transactionHash?.toUpperCase() === searchKey
+          );
+      }
+    }
+
+    if (!found) {
+      // Explicitly return not-found so the UI shows the correct error
+      return {
+        success: false,
+        message: 'Certificate not found. Please check the ID and try again.',
+        data: {
+          valid: false,
+          verificationState: 'not_found',
+          onChainValid: false,
+        },
+      } as unknown as T;
+    }
+
+    const certStatus = found.status === 'revoked' ? 'revoked' : 'valid';
     return {
       success: true,
       message: 'Certificate successfully verified against blockchain record',
       data: {
-        valid: true,
-        verificationState: 'valid',
-        onChainValid: true,
+        valid: certStatus === 'valid',
+        verificationState: certStatus,
+        onChainValid: certStatus === 'valid',
         contractAddress: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
         certificate: {
-          certificateId: cert.certificateId,
-          studentName: cert.studentName,
-          institutionName: cert.institutionName,
-          issueDate: cert.issueDate,
-          status: cert.status,
-          fileHash: cert.fileHash,
-          transactionHash: cert.transactionHash,
-          degree: cert.degree,
-          course: cert.course,
-          department: cert.department,
-          studentId: cert.studentId,
+          certificateId: found.certificateId,
+          studentName: found.studentName,
+          studentId: found.studentId,
+          institutionName: found.institutionName,
+          issueDate: found.issueDate,
+          status: found.status || 'valid',
+          fileHash: found.fileHash,
+          transactionHash: found.transactionHash,
+          metadataHash: found.metadataHash,
+          degree: found.degree,
+          course: found.course,
+          department: found.department,
+          grade: found.grade,
+          approvedBy: found.approvedBy || found.signatoryTitle,
+          expiryDate: found.expiryDate,
         },
       },
     } as unknown as T;
