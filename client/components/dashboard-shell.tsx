@@ -359,9 +359,8 @@ export function DashboardShell({ title, children }: { title: string; children: R
                   variant="secondary" 
                   size={isCollapsed ? "icon" : "sm"} 
                   className={cn("rounded-xl bg-foreground/[0.04] border border-border/12 hover:bg-danger/10 hover:text-danger hover:border-danger/30 transition-all duration-200", isCollapsed ? "size-10" : "flex-1 h-10")} 
-                  onClick={() => {
-                    signOut({ redirect: false });
-                    window.location.href = '/login';
+                  onClick={async () => {
+                    await signOut({ callbackUrl: '/login' });
                   }} 
                   title={isCollapsed ? "Sign Out" : undefined}
                 >

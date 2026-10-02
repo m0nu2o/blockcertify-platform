@@ -1,27 +1,41 @@
 "use client";
 
-import { useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
-import { ArrowRight, BadgeCheck, Blocks, ShieldCheck, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
+import { ArrowRight, BadgeCheck, Blocks, ShieldCheck, Sparkles, ShieldAlert, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GlassCard } from '@/components/ui/glass-card';
 import { useLanguage } from '@/contexts/language-provider';
 
 export function Hero() {
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const cardRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
+  const [studentModalOpen, setStudentModalOpen] = useState(false);
 
-  const startIssuingHref = !session
-    ? '/register'
-    : session.user.role === 'student'
-    ? '/dashboard/student'
-    : '/dashboard/institution';
+  const handleStartIssuing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (status === 'loading') return;
+
+    if (!session) {
+      router.push('/register?role=institution');
+      return;
+    }
+
+    if (session.user.role === 'student') {
+      setStudentModalOpen(true);
+      return;
+    }
+
+    router.push('/dashboard/institution');
+  };
 
   const containerVariants = {
     hidden: {},
@@ -117,10 +131,8 @@ export function Hero() {
             variants={itemVariants}
             className="flex flex-wrap items-center gap-4 pt-4"
           >
-            <Button asChild size="lg" className="rounded-full shadow-glow font-semibold px-8 gap-2 hover:gap-3 transition-all h-12 focus-visible:ring-2 focus-visible:ring-accent">
-              <Link href={startIssuingHref}>
-                {t('hero.cta.start')} <ArrowRight className="size-4" />
-              </Link>
+            <Button onClick={handleStartIssuing} size="lg" className="rounded-full shadow-glow font-semibold px-8 gap-2 hover:gap-3 transition-all h-12 focus-visible:ring-2 focus-visible:ring-accent">
+              {t('hero.cta.start')} <ArrowRight className="size-4" />
             </Button>
             <Button asChild size="lg" variant="secondary" className="rounded-full font-semibold px-8 h-12 focus-visible:ring-2 focus-visible:ring-accent bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30 shadow-sm">
               <Link href="/verify">
@@ -214,6 +226,63 @@ export function Hero() {
           </div>
         </motion.div>
       </motion.div>
+      <AnimatePresence>
+        {studentModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="max-w-md w-full"
+            >
+              <GlassCard className="p-6 border border-border/20 shadow-2xl relative">
+                <button
+                  type="button"
+                  onClick={() => setStudentModalOpen(false)}
+                  className="absolute top-4 right-4 text-foreground/40 hover:text-foreground transition-colors"
+                  aria-label="Close dialog"
+                >
+                  <X className="size-5" />
+                </button>
+
+                <div className="size-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mb-4">
+                  <ShieldAlert className="size-6" />
+                </div>
+
+                <h3 className="text-xl font-bold text-foreground">Certificate Issuance Restricted</h3>
+                <p className="mt-2 text-sm text-foreground/70 leading-relaxed">
+                  Student accounts are not authorized to issue certificates. In accordance with academic verification standards, credentials can only be issued by accredited educational institutions and platform administrators.
+                </p>
+
+                <div className="mt-6 flex flex-col gap-2.5">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setStudentModalOpen(false);
+                      router.push('/dashboard/student');
+                    }}
+                    className="w-full rounded-xl shadow-glow font-semibold"
+                  >
+                    Go to Student Credentials
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      setStudentModalOpen(false);
+                      await signOut({ callbackUrl: '/register?role=institution' });
+                    }}
+                    className="w-full rounded-xl border-border/20 text-foreground/80 hover:text-foreground font-medium"
+                  >
+                    Register as Institution
+                  </Button>
+                </div>
+              </GlassCard>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

@@ -45,15 +45,16 @@ export const getAdminAnalytics = async () => {
 };
 
 export const getInstitutionAnalytics = async (institutionId?: string) => {
-  if (!institutionId || institutionId === 'undefined' || !mongoose.Types.ObjectId.isValid(institutionId)) {
-    return { issued: 0, revoked: 0, students: 0, recentCertificates: [] };
+  const query: Record<string, unknown> = {};
+  if (institutionId && institutionId !== 'undefined' && mongoose.Types.ObjectId.isValid(institutionId)) {
+    query.institution = institutionId;
   }
 
   const [issued, revoked, recentCertificates, students] = await Promise.all([
-    Certificate.countDocuments({ institution: institutionId }),
-    Certificate.countDocuments({ institution: institutionId, status: 'revoked' }),
-    Certificate.find({ institution: institutionId }).sort({ createdAt: -1 }).limit(6),
-    Student.countDocuments({ institution: institutionId }),
+    Certificate.countDocuments(query),
+    Certificate.countDocuments({ ...query, status: 'revoked' }),
+    Certificate.find(query).sort({ createdAt: -1 }).limit(10),
+    Student.countDocuments(query),
   ]);
 
   return { issued, revoked, students, recentCertificates };

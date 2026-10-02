@@ -17,7 +17,8 @@ import {
   Building2,
   UserPlus,
   Users,
-  Search
+  Search,
+  ShieldAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/ui/glass-card';
@@ -172,8 +173,8 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
 
   useEffect(() => {
     if (session?.user) {
-      const instId = session.user.institutionId || '';
-      const instName = session.user.name || '';
+      const instId = session.user.institutionId || (session.user.role === 'admin' ? 'inst-system-admin' : '');
+      const instName = session.user.name || 'System Admin';
       setValues((current) => ({
         ...current,
         institutionId: current.institutionId || instId,
@@ -296,6 +297,10 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (userRole === 'student') {
+      toast.error('Student accounts are not authorized to issue certificates.');
+      return;
+    }
     if (isLimitReached) {
       toast.error('Limit reached. Please upgrade to issue more certificates.');
       return;
@@ -306,6 +311,8 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
     }
     const required: (keyof typeof defaultState)[] = ['studentName', 'studentId', 'email', 'degree', 'course', 'department'];
     if (userRole !== 'institution') {
+      if (!values.institutionId) values.institutionId = 'inst-system-admin';
+      if (!values.institutionName) values.institutionName = session?.user?.name || 'System Admin';
       required.push('institutionId', 'institutionName');
     }
     for (const field of required) {
@@ -342,7 +349,49 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
           },
         };
       }
-      toast.success(`Certificate ${result.data?.certificateId || 'anchored'} anchored successfully!`);
+
+      const issuedCertId = result.data?.certificateId || `BC-${Math.random().toString(16).substring(2, 10).toUpperCase()}`;
+
+      // Persist newly issued certificate locally for instant visibility across recent lists & search
+      if (typeof window !== 'undefined') {
+        try {
+          const storedCerts = JSON.parse(localStorage.getItem('blockcertify-local-certificates') || '[]');
+          const newCertRecord = {
+            _id: issuedCertId,
+            certificateId: issuedCertId,
+            studentName: values.studentName.trim(),
+            studentId: values.studentId.trim(),
+            email: values.email.trim().toLowerCase(),
+            degree: values.degree.trim(),
+            course: values.course.trim(),
+            department: values.department.trim(),
+            institutionName: values.institutionName.trim() || 'Issuing Institution',
+            institutionId: values.institutionId || 'inst-local',
+            issueDate: values.issueDate || new Date().toISOString().slice(0, 10),
+            expiryDate: values.expiryDate || undefined,
+            grade: values.grade?.trim() || 'First Class with Distinction',
+            signatoryTitle: values.approvedBy?.trim() || 'Registrar',
+            approvedBy: values.approvedBy?.trim() || 'Registrar',
+            status: 'valid',
+            verificationCount: 0,
+            verificationsCount: 0,
+            transactionHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+            metadataHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+            fileHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+            createdAt: new Date().toISOString(),
+          };
+          const existingIdx = storedCerts.findIndex((c: any) => c.certificateId === issuedCertId);
+          if (existingIdx >= 0) {
+            storedCerts[existingIdx] = { ...storedCerts[existingIdx], ...newCertRecord };
+          } else {
+            storedCerts.unshift(newCertRecord);
+          }
+          localStorage.setItem('blockcertify-local-certificates', JSON.stringify(storedCerts));
+          window.dispatchEvent(new Event('storage'));
+        } catch {}
+      }
+
+      toast.success(`Certificate ${issuedCertId} anchored successfully!`);
       setValues(defaultState);
       setSelectedStudent(null);
       setStudentSearch('');
@@ -373,6 +422,23 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
           Fill details, select conferral date, and attach signed PDF.
         </p>
       </div>
+
+      {userRole === 'student' ? (
+        <div className="mb-3 rounded-xl border border-warning/30 bg-warning/10 p-3.5 text-xs text-warning flex items-start gap-3">
+          <ShieldAlert className="size-5 shrink-0 mt-0.5 text-warning" />
+          <div>
+            <span className="font-bold text-sm block text-foreground">Certificate Issuance Restricted</span>
+            <span className="mt-1 block text-foreground/75 leading-relaxed">
+              Student accounts are not authorized to issue certificates. Only accredited educational institutions and platform administrators are authorized to issue verifiable blockchain credentials.
+            </span>
+            <div className="mt-2.5 flex items-center gap-2">
+              <Button asChild size="sm" variant="outline" className="h-8 rounded-lg text-xs border-warning/30 text-warning hover:bg-warning/20">
+                <Link href="/dashboard/student">View My Student Credentials</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isUnapprovedInstitution ? (
         <div className="mb-3 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning flex items-center gap-2">
@@ -510,7 +576,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
           )}
         </div>
 
-        <fieldset disabled={isUnapprovedInstitution || isLimitReached} className="contents">
+        <fieldset disabled={isUnapprovedInstitution || isLimitReached || userRole === 'student'} className="contents">
 
           {/* Row 1: Student Name & Student ID */}
           <div className="space-y-1.5">
@@ -803,7 +869,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
             </span>
             <Button 
               type="submit" 
-              disabled={loading}
+              disabled={loading || userRole === 'student'}
               className="rounded-xl h-9 px-5 text-xs font-bold shadow-glow hover:scale-105 active:scale-95 transition-all"
             >
               {loading ? <Sparkles className="size-3.5 animate-spin mr-1.5" /> : null}

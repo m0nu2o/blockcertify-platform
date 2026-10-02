@@ -97,7 +97,9 @@ export function RegisterForm() {
     }
   }, [status, session?.user?.role, router]);
 
-  const form = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { role: 'student' } });
+  const searchParams = useSearchParams();
+  const requestedRole = searchParams.get('role') === 'institution' ? 'institution' : 'student';
+  const form = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { role: requestedRole } });
   const role = form.watch('role');
   const { errors } = form.formState;
 
@@ -107,27 +109,68 @@ export function RegisterForm() {
       try {
         await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(values) });
 
-        // Save newly registered student locally so they are immediately selectable
-        if (typeof window !== 'undefined' && values.role === 'student') {
+        // Save newly registered user, student, or institution locally for instant visibility
+        if (typeof window !== 'undefined') {
           try {
-            const stored = JSON.parse(localStorage.getItem('blockcertify-registered-students') || '[]');
-            const newStudent = {
-              _id: `reg-stu-${Date.now()}`,
+            const now = Date.now();
+
+            // 1. General User Record
+            const storedUsers = JSON.parse(localStorage.getItem('blockcertify-registered-users') || '[]');
+            const newUser = {
+              _id: `user-${now}`,
               name: values.name.trim(),
-              studentId: values.studentId?.trim() || `STU-${Date.now().toString().slice(-5)}`,
               email: values.email.trim().toLowerCase(),
-              degree: 'Bachelor of Science',
-              course: 'Computer Science',
-              department: 'Engineering',
-              graduationYear: new Date().getFullYear(),
+              role: values.role,
+              createdAt: new Date().toISOString(),
             };
-            const existingIdx = stored.findIndex((s: any) => s.email === newStudent.email || s.studentId === newStudent.studentId);
-            if (existingIdx >= 0) {
-              stored[existingIdx] = { ...stored[existingIdx], ...newStudent };
-            } else {
-              stored.unshift(newStudent);
+            const uIdx = storedUsers.findIndex((u: any) => u.email === newUser.email);
+            if (uIdx >= 0) storedUsers[uIdx] = { ...storedUsers[uIdx], ...newUser };
+            else storedUsers.unshift(newUser);
+            localStorage.setItem('blockcertify-registered-users', JSON.stringify(storedUsers));
+
+            // 2. Student Record
+            if (values.role === 'student') {
+              const stored = JSON.parse(localStorage.getItem('blockcertify-registered-students') || '[]');
+              const newStudent = {
+                _id: `reg-stu-${now}`,
+                name: values.name.trim(),
+                studentId: values.studentId?.trim() || `STU-${now.toString().slice(-5)}`,
+                email: values.email.trim().toLowerCase(),
+                degree: 'Bachelor of Science',
+                course: 'Computer Science',
+                department: 'Engineering',
+                graduationYear: new Date().getFullYear(),
+              };
+              const existingIdx = stored.findIndex((s: any) => s.email === newStudent.email || s.studentId === newStudent.studentId);
+              if (existingIdx >= 0) {
+                stored[existingIdx] = { ...stored[existingIdx], ...newStudent };
+              } else {
+                stored.unshift(newStudent);
+              }
+              localStorage.setItem('blockcertify-registered-students', JSON.stringify(stored));
             }
-            localStorage.setItem('blockcertify-registered-students', JSON.stringify(stored));
+
+            // 3. Institution Record
+            if (values.role === 'institution') {
+              const storedInsts = JSON.parse(localStorage.getItem('blockcertify-registered-institutions') || '[]');
+              const newInst = {
+                _id: `reg-inst-${now}`,
+                name: values.institutionName?.trim() || values.name.trim(),
+                email: values.email.trim().toLowerCase(),
+                website: 'https://blockcertify.io',
+                status: 'approved',
+                stats: { certificatesIssued: 0, certificatesRevoked: 0, studentsManaged: 0 },
+                createdAt: new Date().toISOString(),
+              };
+              const existingInstIdx = storedInsts.findIndex((i: any) => i.email === newInst.email || i.name === newInst.name);
+              if (existingInstIdx >= 0) {
+                storedInsts[existingInstIdx] = { ...storedInsts[existingInstIdx], ...newInst };
+              } else {
+                storedInsts.unshift(newInst);
+              }
+              localStorage.setItem('blockcertify-registered-institutions', JSON.stringify(storedInsts));
+            }
+
             window.dispatchEvent(new Event('storage'));
           } catch {
             // ignore

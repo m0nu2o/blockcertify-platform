@@ -31,17 +31,78 @@ const markSubApproved = (id: string) => {
   }
 };
 
+function getLocalCertificates(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('blockcertify-local-certificates');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function getLocalInstitutions(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('blockcertify-registered-institutions');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function getLocalStudents(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('blockcertify-registered-students');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function getLocalUsers(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('blockcertify-registered-users');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | null {
   const p = path.split('?')[0];
   const approvedSet = getApprovedSubs();
+  const localCerts = getLocalCertificates();
+  const localInstitutions = getLocalInstitutions();
+  const localStudents = getLocalStudents();
+  const localUsers = getLocalUsers();
 
   if (p === '/analytics/admin' || p === '/analytics/overview') {
+    const mergedRankings = [...seedData.institutionRankings];
+    for (const inst of localInstitutions) {
+      if (!mergedRankings.some((r) => r._id === inst._id || r.name === inst.name)) {
+        mergedRankings.unshift({
+          _id: inst._id,
+          name: inst.name,
+          stats: { certificatesIssued: 0, certificatesRevoked: 0, studentsManaged: 0 },
+        });
+      }
+    }
+
     return {
       success: true,
       message: 'Analytics retrieved',
       data: {
-        stats: seedData.stats,
-        institutionRankings: seedData.institutionRankings,
+        stats: {
+          ...seedData.stats,
+          certificatesIssued: seedData.stats.certificatesIssued + localCerts.length,
+          institutions: seedData.stats.institutions + localInstitutions.length,
+          students: seedData.stats.students + localStudents.length,
+          transactions: seedData.stats.transactions + localCerts.length,
+        },
+        institutionRankings: mergedRankings,
         trafficAnalytics: seedData.trafficAnalytics,
       },
     } as unknown as T;
@@ -52,7 +113,7 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
       success: true,
       data: [
         { _id: 'notif-1', title: 'System Ready', message: 'Blockchain node and smart contracts active with live MongoDB synchronization.', type: 'success', read: false, createdAt: new Date().toISOString() },
-        { _id: 'notif-2', title: 'Real Ledger Synced', message: `${seedData.certificates.length} certificates and ${seedData.transactions.length} blockchain transactions loaded.`, type: 'info', read: true, createdAt: new Date().toISOString() },
+        { _id: 'notif-2', title: 'Real Ledger Synced', message: `${seedData.certificates.length + localCerts.length} certificates and ${seedData.transactions.length + localCerts.length} blockchain transactions loaded.`, type: 'info', read: true, createdAt: new Date().toISOString() },
       ],
     } as unknown as T;
   }
@@ -62,50 +123,86 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
   }
 
   if (p === '/certificates' || p === '/certificates/recent') {
+    // Map to prevent duplicate certificate IDs while putting newly issued first
+    const certMap = new Map<string, any>();
+    for (const c of localCerts) {
+      if (c.certificateId) certMap.set(c.certificateId, c);
+    }
+    for (const c of seedData.certificates || []) {
+      if (c.certificateId && !certMap.has(c.certificateId)) {
+        certMap.set(c.certificateId, c);
+      }
+    }
+    const combinedCerts = Array.from(certMap.values());
+
     return {
       success: true,
       data: {
-        items: seedData.certificates,
-        total: seedData.certificates.length,
+        items: combinedCerts,
+        total: combinedCerts.length,
         page: 1,
-        limit: 20,
+        limit: 50,
       },
     } as unknown as T;
   }
 
   if (p === '/certificates/institution/summary') {
+    const totalIssued = seedData.stats.certificatesIssued + localCerts.length;
     return {
       success: true,
       data: {
-        totalIssued: seedData.stats.certificatesIssued,
+        totalIssued,
         totalRevoked: seedData.stats.certificatesRevoked,
         activeTemplates: 4,
         monthlyLimit: 500,
-        remainingThisMonth: 500 - seedData.stats.certificatesIssued,
+        remainingThisMonth: Math.max(0, 500 - totalIssued),
       },
     } as unknown as T;
   }
 
   if (p === '/analytics/institution') {
+    const certMap = new Map<string, any>();
+    for (const c of localCerts) {
+      if (c.certificateId) certMap.set(c.certificateId, c);
+    }
+    for (const c of seedData.certificates || []) {
+      if (c.certificateId && !certMap.has(c.certificateId)) {
+        certMap.set(c.certificateId, c);
+      }
+    }
+    const combinedCerts = Array.from(certMap.values());
+
     return {
       success: true,
       data: {
-        issued: seedData.stats.certificatesIssued,
+        issued: seedData.stats.certificatesIssued + localCerts.length,
         revoked: seedData.stats.certificatesRevoked,
-        students: seedData.stats.students,
-        recentCertificates: seedData.certificates.slice(0, 5),
+        students: seedData.stats.students + localStudents.length,
+        recentCertificates: combinedCerts.slice(0, 10),
       },
     } as unknown as T;
   }
 
   if (p === '/analytics/student') {
-    const studentCerts = seedData.certificates.filter(c => c.studentName === 'Ava Thompson' || c.studentId === 'STU-001');
+    const certMap = new Map<string, any>();
+    for (const c of localCerts) {
+      if (c.certificateId) certMap.set(c.certificateId, c);
+    }
+    for (const c of seedData.certificates || []) {
+      if (c.certificateId && !certMap.has(c.certificateId)) {
+        certMap.set(c.certificateId, c);
+      }
+    }
+    const combinedCerts = Array.from(certMap.values());
+    const studentCerts = combinedCerts.filter(
+      (c) => c.studentName === 'Ava Thompson' || c.studentId === 'STU-001' || localCerts.some((lc) => lc.certificateId === c.certificateId)
+    );
     return {
       success: true,
       data: {
         totalCertificates: studentCerts.length || 2,
         verifiedCertificates: studentCerts.length || 2,
-        certificates: studentCerts.length > 0 ? studentCerts : seedData.certificates.slice(0, 2),
+        certificates: studentCerts.length > 0 ? studentCerts : combinedCerts.slice(0, 5),
       },
     } as unknown as T;
   }
@@ -133,12 +230,49 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
   }
 
   if (p === '/admin/institutions') {
+    const instMap = new Map<string, any>();
+    for (const inst of localInstitutions) {
+      if (inst.name || inst.email) instMap.set((inst.email || inst.name).toLowerCase(), inst);
+    }
+    for (const inst of seedData.institutions || []) {
+      const key = (inst.email || inst.name).toLowerCase();
+      if (!instMap.has(key)) {
+        instMap.set(key, inst);
+      }
+    }
+    const combinedInsts = Array.from(instMap.values());
     return {
       success: true,
       message: 'Institutions retrieved',
       data: {
-        items: seedData.institutions,
-        total: seedData.institutions.length,
+        items: combinedInsts,
+        total: combinedInsts.length,
+      },
+    } as unknown as T;
+  }
+
+  if (p === '/admin/users') {
+    const userMap = new Map<string, any>();
+    for (const u of localUsers) {
+      if (u.email) userMap.set(u.email.toLowerCase(), u);
+    }
+    for (const s of seedData.students || []) {
+      if (s.email && !userMap.has(s.email.toLowerCase())) {
+        userMap.set(s.email.toLowerCase(), { _id: s._id, name: s.name, email: s.email, role: 'student', createdAt: new Date().toISOString() });
+      }
+    }
+    for (const inst of seedData.institutions || []) {
+      if (inst.email && !userMap.has(inst.email.toLowerCase())) {
+        userMap.set(inst.email.toLowerCase(), { _id: inst._id, name: inst.name, email: inst.email, role: 'institution', createdAt: new Date().toISOString() });
+      }
+    }
+    const combinedUsers = Array.from(userMap.values());
+    return {
+      success: true,
+      message: 'Users retrieved',
+      data: {
+        items: combinedUsers,
+        total: combinedUsers.length,
       },
     } as unknown as T;
   }
@@ -322,12 +456,29 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
     if (body && typeof window !== 'undefined') {
       try {
         const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+        const now = Date.now();
+
+        // 1. General User Record
+        const storedUsers = JSON.parse(localStorage.getItem('blockcertify-registered-users') || '[]');
+        const newUser = {
+          _id: `user-${now}`,
+          name: parsed.name?.trim() || 'User',
+          email: parsed.email?.trim().toLowerCase() || 'user@example.com',
+          role: parsed.role || 'student',
+          createdAt: new Date().toISOString(),
+        };
+        const uIdx = storedUsers.findIndex((u: any) => u.email === newUser.email);
+        if (uIdx >= 0) storedUsers[uIdx] = { ...storedUsers[uIdx], ...newUser };
+        else storedUsers.unshift(newUser);
+        localStorage.setItem('blockcertify-registered-users', JSON.stringify(storedUsers));
+
+        // 2. Student Record
         if (parsed.role === 'student') {
           const stored = JSON.parse(localStorage.getItem('blockcertify-registered-students') || '[]');
           const newStudent = {
-            _id: `reg-stu-${Date.now()}`,
+            _id: `reg-stu-${now}`,
             name: parsed.name?.trim() || 'New Student',
-            studentId: parsed.studentId?.trim() || `STU-${Date.now().toString().slice(-5)}`,
+            studentId: parsed.studentId?.trim() || `STU-${now.toString().slice(-5)}`,
             email: parsed.email?.trim().toLowerCase() || 'student@example.com',
             degree: 'Bachelor of Science',
             course: 'Computer Science',
@@ -342,6 +493,29 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
           }
           localStorage.setItem('blockcertify-registered-students', JSON.stringify(stored));
         }
+
+        // 3. Institution Record
+        if (parsed.role === 'institution') {
+          const storedInsts = JSON.parse(localStorage.getItem('blockcertify-registered-institutions') || '[]');
+          const newInst = {
+            _id: `reg-inst-${now}`,
+            name: parsed.institutionName?.trim() || parsed.name?.trim() || 'New Institution',
+            email: parsed.email?.trim().toLowerCase() || 'institution@example.com',
+            website: parsed.website || 'https://blockcertify.io',
+            status: 'approved',
+            stats: { certificatesIssued: 0, certificatesRevoked: 0, studentsManaged: 0 },
+            createdAt: new Date().toISOString(),
+          };
+          const existingInstIdx = storedInsts.findIndex((i: any) => i.email === newInst.email || i.name === newInst.name);
+          if (existingInstIdx >= 0) {
+            storedInsts[existingInstIdx] = { ...storedInsts[existingInstIdx], ...newInst };
+          } else {
+            storedInsts.unshift(newInst);
+          }
+          localStorage.setItem('blockcertify-registered-institutions', JSON.stringify(storedInsts));
+        }
+
+        window.dispatchEvent(new Event('storage'));
       } catch {}
     }
     return {

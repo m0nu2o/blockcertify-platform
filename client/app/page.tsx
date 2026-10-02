@@ -30,15 +30,27 @@ const revealVariants = {
   }
 };
 
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+
 export default function HomePage() {
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const { t } = useLanguage();
 
-  const trialHref = !session
-    ? '/register'
-    : session.user.role === 'student'
-    ? '/dashboard/student'
-    : '/dashboard/institution';
+  const handleStartTrial = () => {
+    if (status === 'loading') return;
+    if (!session) {
+      router.push('/register?role=institution');
+      return;
+    }
+    if (session.user.role === 'student') {
+      toast.error('Student accounts are not authorized to issue credentials. Redirecting to student profile.');
+      router.push('/dashboard/student');
+      return;
+    }
+    router.push('/dashboard/institution');
+  };
 
   return (
     <MarketingShell>
@@ -194,7 +206,7 @@ export default function HomePage() {
               <h2 className="text-4xl font-extrabold tracking-tight text-foreground">Ready to modernize your credential infrastructure?</h2>
               <p className="mt-4 text-sm text-foreground/75 leading-relaxed max-w-2xl mx-auto">Launch a future-ready issuance and verification system with enterprise analytics, auditability, and beautiful student experiences.</p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Button asChild size="lg" className="rounded-xl py-6 px-8 shadow-glow"><Link href={trialHref}>Start Free Trial</Link></Button>
+                <Button onClick={handleStartTrial} size="lg" className="rounded-xl py-6 px-8 shadow-glow">Start Free Trial</Button>
                 <Button asChild size="lg" variant="secondary" className="rounded-xl py-6 px-8 hover:bg-foreground/[0.08]"><Link href="/documentation">View Documentation</Link></Button>
               </div>
             </div>

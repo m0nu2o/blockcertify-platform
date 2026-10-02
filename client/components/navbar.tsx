@@ -350,10 +350,9 @@ export function Navbar() {
                             
                             <button 
                               suppressHydrationWarning
-                              onClick={() => { 
+                              onClick={async () => { 
                                 setUserMenuOpen(false); 
-                                signOut({ redirect: false });
-                                window.location.href = '/login';
+                                await signOut({ callbackUrl: '/login' });
                               }} 
                               className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-colors text-left mt-1 border-t border-border/10 pt-2"
                             >
@@ -425,7 +424,7 @@ export function Navbar() {
               ) : status === 'authenticated' ? (
                 <div className="grid grid-cols-2 gap-2">
                   <Link href="/dashboard"><Button variant="secondary" className="w-full rounded-xl">Dashboard</Button></Link>
-                  <Button className="w-full rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive" onClick={() => signOut({ callbackUrl: '/' })}>Sign Out</Button>
+                  <Button className="w-full rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive" onClick={async () => { setOpen(false); await signOut({ callbackUrl: '/login' }); }}>Sign Out</Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">

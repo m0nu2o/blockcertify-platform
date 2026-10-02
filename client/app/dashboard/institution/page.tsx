@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Activity, Building2, ChevronRight, Copy, Check, GraduationCap, ShieldCheck, ShieldOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { DashboardShell } from '@/components/dashboard-shell';
@@ -52,6 +53,7 @@ type InstitutionDashboardData = {
 };
 
 export default function InstitutionDashboardPage() {
+  const router = useRouter();
   const { data: session, status } = useSession();
   const [data, setData] = useState<InstitutionDashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,12 @@ export default function InstitutionDashboardPage() {
   const [selectedForRevoke, setSelectedForRevoke] = useState<Set<string>>(new Set());
   const [revokingBulk, setRevokingBulk] = useState(false);
   const [showAllCertificates, setShowAllCertificates] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'student') {
+      router.replace('/dashboard/student?accessDenied=institution');
+    }
+  }, [status, session?.user?.role, router]);
 
   const loadDashboard = useCallback(async () => {
     if (!session?.user.accessToken) return;

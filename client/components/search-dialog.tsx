@@ -107,9 +107,9 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                           {items.map((action) => (
                             <button
                               key={action.id}
-                              onClick={() => {
+                              onClick={async () => {
                                 if (action.action === 'logout') {
-                                  signOut({ callbackUrl: '/' });
+                                  await signOut({ callbackUrl: '/login' });
                                 } else if (action.href) {
                                   router.push(action.href);
                                 }
