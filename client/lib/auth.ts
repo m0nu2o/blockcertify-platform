@@ -35,6 +35,7 @@ type LoginResponse = {
 };
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET || 'blockcertify-super-secure-nextauth-production-key-2026',
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [
