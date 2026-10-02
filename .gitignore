@@ -27,3 +27,5 @@ client/public/workbox-*.js
 *.cfg
 server/mongod.cfg
 *.tsbuildinfo
+*.zip
+mongodb-dump.json

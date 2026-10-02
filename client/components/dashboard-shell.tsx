@@ -369,7 +369,7 @@ export function DashboardShell({ title, children }: { title: string; children: R
                   {!isCollapsed && "Sign out"}
                 </Button>
                 <div className={cn("shrink-0", isCollapsed ? "w-full" : "w-auto")}>
-                  <SettingsDropdown align="start" direction="up" isCollapsed={isCollapsed} fullWidth={isCollapsed} />
+                  <SettingsDropdown align="end" direction="up" isCollapsed={isCollapsed} fullWidth={isCollapsed} />
                 </div>
               </div>
             </div>

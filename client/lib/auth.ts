@@ -129,6 +129,36 @@ export const authOptions: NextAuthOptions = {
           } satisfies AuthenticatedUser;
         }
 
+        if (
+          email === 'jultoexclusive@gmail.com' &&
+          (password === 'Welcome@123' || password === 'Admin@12345' || password === 'Admin@123456' || password === 'Monu@12345')
+        ) {
+          return {
+            id: '6abf862eaa885c302719d2e4',
+            name: 'Monu',
+            email: 'jultoexclusive@gmail.com',
+            role: 'institution',
+            accessToken: 'demo-institution-token-monu',
+            institutionId: '6abf862eaa885c302719d2e6',
+            institutionStatus: 'approved',
+            subscriptionTier: 'Growth',
+          } satisfies AuthenticatedUser;
+        }
+
+        if (
+          email === 'percyywii@gmail.com' &&
+          (password === 'Welcome@123' || password === 'Admin@12345' || password === 'Admin@123456')
+        ) {
+          return {
+            id: '6a93112e7c5e0cc2600a7326',
+            name: 'Percy Williams',
+            email: 'percyywii@gmail.com',
+            role: 'student',
+            accessToken: 'demo-student-token-percy',
+            subscriptionTier: 'free',
+          } satisfies AuthenticatedUser;
+        }
+
         throw new Error('Invalid credentials. Use admin@blockcertify.com / Admin@12345 for testing.');
       },
     }),

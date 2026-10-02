@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, X, Shield, Trash2, ShieldCheck, EyeOff, Globe, BellRing, Monitor, SlidersHorizontal, Type, Smartphone, Clock, Key, FileText, Timer } from 'lucide-react';
 import { fonts } from '@/lib/themes';
-import { GlassCard } from '@/components/ui/glass-card';
 import { cn } from '@/lib/utils';
 import { useFont } from '@/contexts/font-provider';
 import { toast } from 'sonner';
@@ -31,6 +30,18 @@ export function SettingsDropdown({
   const [privacyMode, setPrivacyMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [twoFactor, setTwoFactor] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, [open]);
 
   const handleClearCache = () => {
     const keysToRemove: string[] = [];
@@ -73,7 +84,7 @@ export function SettingsDropdown({
   };
 
   return (
-    <div className={cn("relative", fullWidth ? "w-full flex flex-col-reverse" : "inline-block")}>
+    <div ref={dropdownRef} className={cn("relative", fullWidth ? "w-full flex flex-col-reverse" : "inline-block")}>
       <button
         suppressHydrationWarning
         type="button"
@@ -98,13 +109,13 @@ export function SettingsDropdown({
             transition={{ type: "spring", stiffness: 350, damping: 25 }}
             className={cn(
               "absolute z-50",
-              fullWidth && !isCollapsed ? "w-full min-w-[240px]" : "min-w-[280px]",
+              fullWidth && !isCollapsed ? "w-full min-w-[280px]" : "w-[280px] sm:w-[300px]",
               isCollapsed 
-                ? "left-full bottom-0 ml-4 w-[280px]" // Pop out to the right when collapsed, fixed width
-                : cn(direction === 'up' ? 'bottom-full mb-3' : 'top-full mt-3', align === 'end' ? 'right-0' : align === 'start' ? 'left-0' : 'left-1/2 -translate-x-1/2')
+                ? "left-full bottom-0 ml-3" 
+                : cn(direction === 'up' ? 'bottom-full mb-3' : 'top-full mt-3', align === 'end' ? 'right-0' : align === 'start' ? 'left-0 sm:left-auto sm:right-0' : 'left-1/2 -translate-x-1/2')
             )}
           >
-            <GlassCard className="p-3 shadow-2xl border-accent/20 bg-card/95 backdrop-blur-3xl rounded-3xl w-full flex flex-col gap-3">
+            <div className="p-3.5 shadow-2xl border border-slate-200/90 dark:border-white/10 bg-white dark:bg-[#0c1322] text-slate-900 dark:text-foreground rounded-2xl w-full flex flex-col gap-3 backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/5">
               <div className="flex items-center justify-between px-1">
                   <span className="text-xs font-bold uppercase tracking-widest text-foreground/50">
                     {mode === 'preferences' ? t('settings.preferences') : mode === 'language' ? t('settings.language') : mode === 'font' ? 'Select Font' : t('settings.security')}
@@ -313,7 +324,7 @@ export function SettingsDropdown({
                     <Shield className="size-4" />
                   </button>
                 </div>
-              </GlassCard>
+              </div>
           </motion.div>
         ) : null}
       </AnimatePresence>

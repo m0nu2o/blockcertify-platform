@@ -24,15 +24,19 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} ${outfit.variable} ${plusJakarta.variable} ${bricolage.variable} ${syne.variable} ${playfair.variable}`}>
+      <body className={`min-h-screen flex flex-col ${inter.variable} ${spaceGrotesk.variable} ${outfit.variable} ${plusJakarta.variable} ${bricolage.variable} ${syne.variable} ${playfair.variable}`}>
         <LanguageProvider>
           <FontProvider>
             <LenisProvider>
-              <Providers>{children}</Providers>
+              <Providers>
+                <div className="flex-1 flex flex-col w-full">
+                  {children}
+                </div>
+              </Providers>
             </LenisProvider>
           </FontProvider>
         </LanguageProvider>
-        <footer style={{ textAlign: 'center', padding: '2rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '4rem' }}>
+        <footer className="border-t border-border/10 bg-background/80 py-4 px-4 text-center text-xs text-foreground/60 backdrop-blur shrink-0 select-none">
           © 2026 BlockCertify. All rights reserved. Unauthorized copying, distribution, or reverse engineering is prohibited.
         </footer>
       </body>

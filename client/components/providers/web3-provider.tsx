@@ -26,69 +26,108 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
   const [chainId, setChainId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
+  const getSafeItem = (key: string): string | null => {
+    try {
+      if (typeof window === 'undefined') return null;
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+
+  const setSafeItem = (key: string, val: string) => {
+    try {
+      if (typeof window !== 'undefined') localStorage.setItem(key, val);
+    } catch {
+      // ignore
+    }
+  };
+
+  const removeSafeItem = (key: string) => {
+    try {
+      if (typeof window !== 'undefined') localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  };
+
   const checkConnection = async () => {
     try {
       const ethereum = (window as any).ethereum;
-      if (!ethereum) return;
+      if (!ethereum || typeof ethereum.request !== 'function') return;
 
       const accounts = await ethereum.request({ method: 'eth_accounts' });
-      if (accounts.length > 0) {
+      if (accounts && accounts.length > 0) {
         setAccount(accounts[0]);
-        localStorage.setItem('web3_account', accounts[0]);
+        setSafeItem('web3_account', accounts[0]);
         const chainIdHex = await ethereum.request({ method: 'eth_chainId' });
         setChainId(chainIdHex);
       }
     } catch (err) {
-      console.error('[Web3Provider] Error checking connection:', err);
+      console.warn('[Web3Provider] Check connection warning:', err);
     }
   };
 
   // Load saved connection state on mount
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const savedAccount = localStorage.getItem('web3_account');
-    if (savedAccount && (window as any).ethereum) {
-      checkConnection();
+    try {
+      const savedAccount = getSafeItem('web3_account');
+      if (savedAccount && (window as any).ethereum) {
+        void checkConnection();
+      }
+    } catch {
+      // ignore
     }
   }, []);
 
   // Listen for wallet events
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const ethereum = (window as any).ethereum;
-    if (!ethereum) return;
+    try {
+      if (typeof window === 'undefined') return;
+      const ethereum = (window as any).ethereum;
+      if (!ethereum || typeof ethereum.on !== 'function') return;
 
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length > 0) {
-        setAccount(accounts[0]);
-        localStorage.setItem('web3_account', accounts[0]);
-        toast.success(`Wallet connected: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`);
-      } else {
-        setAccount(null);
-        setChainId(null);
-        localStorage.removeItem('web3_account');
-        toast.success('Wallet disconnected');
-      }
-    };
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts && accounts.length > 0) {
+          setAccount(accounts[0]);
+          setSafeItem('web3_account', accounts[0]);
+          toast.success(`Wallet connected: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`);
+        } else {
+          setAccount(null);
+          setChainId(null);
+          removeSafeItem('web3_account');
+          toast.success('Wallet disconnected');
+        }
+      };
 
-    const handleChainChanged = (newChainId: string) => {
-      setChainId(newChainId);
-    };
+      const handleChainChanged = (newChainId: string) => {
+        setChainId(newChainId);
+      };
 
-    ethereum.on('accountsChanged', handleAccountsChanged);
-    ethereum.on('chainChanged', handleChainChanged);
+      ethereum.on('accountsChanged', handleAccountsChanged);
+      ethereum.on('chainChanged', handleChainChanged);
 
-    return () => {
-      if (ethereum.removeListener) {
-        ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        ethereum.removeListener('chainChanged', handleChainChanged);
-      }
-    };
+      return () => {
+        try {
+          if (typeof ethereum.removeListener === 'function') {
+            ethereum.removeListener('accountsChanged', handleAccountsChanged);
+            ethereum.removeListener('chainChanged', handleChainChanged);
+          } else if (typeof ethereum.off === 'function') {
+            ethereum.off('accountsChanged', handleAccountsChanged);
+            ethereum.off('chainChanged', handleChainChanged);
+          }
+        } catch {
+          // ignore cleanup errors
+        }
+      };
+    } catch {
+      // ignore event listener errors
+    }
   }, []);
 
   const connectWallet = async () => {
     const ethereum = (window as any).ethereum;
-    if (!ethereum) {
+    if (!ethereum || typeof ethereum.request !== 'function') {
       toast.error('MetaMask or another Web3 wallet extension was not found. Please install a wallet.');
       return;
     }
@@ -96,20 +135,20 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
     setIsConnecting(true);
     try {
       const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-      if (accounts.length > 0) {
+      if (accounts && accounts.length > 0) {
         setAccount(accounts[0]);
-        localStorage.setItem('web3_account', accounts[0]);
+        setSafeItem('web3_account', accounts[0]);
         const chainIdHex = await ethereum.request({ method: 'eth_chainId' });
         setChainId(chainIdHex);
         toast.success('Wallet successfully connected');
       }
     } catch (err: any) {
-      if (err.code === 4001) {
+      if (err?.code === 4001) {
         toast.error('Wallet connection rejected by user');
       } else {
         toast.error('Failed to connect wallet');
       }
-      console.error('[Web3Provider] Error connecting wallet:', err);
+      console.warn('[Web3Provider] Connect wallet error:', err);
     } finally {
       setIsConnecting(false);
     }
@@ -118,7 +157,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
   const disconnectWallet = () => {
     setAccount(null);
     setChainId(null);
-    localStorage.removeItem('web3_account');
+    removeSafeItem('web3_account');
   };
 
   return (

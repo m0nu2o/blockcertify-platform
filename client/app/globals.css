@@ -45,6 +45,7 @@ html[data-theme='monochrome'] { color-scheme: dark; --background: 8 8 8; --foreg
 
 html, body {
   overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 body {
