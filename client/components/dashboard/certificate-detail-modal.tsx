@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Award, Building2, Calendar, Check, Copy, Download, ExternalLink,
@@ -295,6 +296,15 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
                 </Button>
               </a>
             )}
+            <Link
+              href={`/verify?id=${certificate.certificateId}`}
+              target="_blank"
+              className="sm:w-auto"
+            >
+              <Button variant="outline" className="w-full sm:w-auto gap-2 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
+                <BadgeCheck className="size-4 text-emerald-400" /> Verify Credential
+              </Button>
+            </Link>
             <a
               href={`/certificate/${certificate.certificateId}`}
               target="_blank"

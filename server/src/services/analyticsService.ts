@@ -59,8 +59,16 @@ export const getInstitutionAnalytics = async (institutionId?: string) => {
   return { issued, revoked, students, recentCertificates };
 };
 
-export const getStudentAnalytics = async (studentId?: string) => {
-  if (!studentId || studentId === 'undefined') {
+export const getStudentAnalytics = async (studentId?: string, email?: string) => {
+  const conditions: Record<string, unknown>[] = [];
+  if (studentId && studentId !== 'undefined' && studentId.trim()) {
+    conditions.push({ studentId: studentId.trim() });
+  }
+  if (email && email.trim()) {
+    conditions.push({ email: email.trim().toLowerCase() });
+  }
+
+  if (conditions.length === 0) {
     return {
       totalCertificates: 0,
       verifiedCertificates: 0,
@@ -68,7 +76,8 @@ export const getStudentAnalytics = async (studentId?: string) => {
     };
   }
 
-  const certificates = await Certificate.find({ studentId }).sort({ createdAt: -1 });
+  const query = conditions.length === 1 ? conditions[0] : { $or: conditions };
+  const certificates = await Certificate.find(query).sort({ createdAt: -1 });
   return {
     totalCertificates: certificates.length,
     verifiedCertificates: certificates.filter((item) => item.verificationCount > 0).length,

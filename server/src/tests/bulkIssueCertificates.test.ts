@@ -66,6 +66,7 @@ describe('bulkIssueCertificates', () => {
       _id: 'institution-1',
       name: 'Future University',
       status: 'approved',
+      subscription: { tier: 'Starter', maxCertificates: 100, allowBulk: true },
       stats: { certificatesIssued: 0, studentsManaged: 0 },
       save: jest.fn().mockResolvedValue(undefined),
     };
@@ -78,6 +79,7 @@ describe('bulkIssueCertificates', () => {
       ...payload,
       _id: `doc-${String(payload.certificateId)}`,
       id: `doc-${String(payload.certificateId)}`,
+      save: jest.fn().mockResolvedValue(undefined),
     }));
     (BlockchainTransaction.create as jest.Mock).mockResolvedValue(undefined);
     (User.findOne as jest.Mock).mockResolvedValue(null);

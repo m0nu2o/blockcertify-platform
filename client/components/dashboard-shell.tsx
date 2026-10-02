@@ -88,11 +88,17 @@ export function DashboardShell({ title, children }: { title: string; children: R
   const { data: session } = useSession();
   const userRole = session?.user?.role;
   const [profilePic, setProfilePic] = useState<string | null>(null);
-  const [tier, setTier] = useState<string>('free');
+  const [tier, setTier] = useState<string>(session?.user?.subscriptionTier || 'free');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarQuery, setSidebarQuery] = useState('');
 
   const userId = session?.user?.id;
+
+  useEffect(() => {
+    if (session?.user?.subscriptionTier) {
+      setTier(session.user.subscriptionTier);
+    }
+  }, [session?.user?.subscriptionTier]);
 
   useEffect(() => {
     if (!userId) return;
@@ -100,7 +106,7 @@ export function DashboardShell({ title, children }: { title: string; children: R
     const loadData = async () => {
       const savedPic = await getAvatar(`blockcertify-profile-pic-${userId}`);
       setProfilePic(savedPic);
-      const savedTier = localStorage.getItem(`blockcertify-tier-${userId}`) || 'free';
+      const savedTier = session?.user?.subscriptionTier || localStorage.getItem(`blockcertify-tier-${userId}`) || 'free';
       setTier(savedTier);
     };
 
@@ -110,7 +116,7 @@ export function DashboardShell({ title, children }: { title: string; children: R
     return () => {
       window.removeEventListener('storage', loadData);
     };
-  }, [userId]);
+  }, [userId, session?.user?.subscriptionTier]);
 
   const { account, isConnecting, connectWallet, disconnectWallet } = useWeb3();
 

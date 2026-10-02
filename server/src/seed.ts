@@ -115,6 +115,7 @@ const seed = async () => {
     const pdfBuffer = await buildSampleCertificatePdf();
     const certificate = await issueCertificate({
       payload: {
+        certificateId: 'BC-5A4A9D6E',
         studentName: student.name,
         studentId: student.studentId,
         email: student.email,

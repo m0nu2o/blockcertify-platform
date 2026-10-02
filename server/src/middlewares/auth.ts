@@ -26,7 +26,17 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       return res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: 'Invalid user session' });
     }
 
-    req.user = { _id: user.id, role: user.role, email: user.email, name: user.name };
+    req.user = {
+      _id: user.id,
+      id: user.id,
+      role: user.role,
+      email: user.email,
+      name: user.name,
+      institution: user.institution ? String(user.institution) : undefined,
+      institutionId: user.institution ? String(user.institution) : undefined,
+      student: user.student ? String(user.student) : undefined,
+      subscription: user.subscription || { tier: 'free', status: 'active' },
+    };
     next();
   } catch (_error) {
     return res.status(StatusCodes.UNAUTHORIZED).json({ success: false, message: 'Invalid or expired token' });

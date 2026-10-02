@@ -1,7 +1,17 @@
 
 import { Schema, model, Document, Types } from 'mongoose';
 
-export type CertificateStatus = 'pending_approval' | 'issued' | 'verified' | 'revoked' | 'expired';
+export type CertificateStatus = 'draft' | 'pending_approval' | 'issued' | 'verified' | 'revoked' | 'expired' | 'failed';
+export type BlockchainStatus = 'none' | 'pending' | 'confirmed' | 'failed';
+
+export interface ICertificateHistory {
+  action: string;
+  timestamp: Date;
+  actor?: string;
+  changes?: Record<string, unknown>;
+  transactionHash?: string;
+  reason?: string;
+}
 
 export interface ICertificate extends Document {
   certificateId: string;
@@ -24,8 +34,18 @@ export interface ICertificate extends Document {
   metadataCid?: string;
   metadataUrl?: string;
   blockchainHash?: string;
-  blockchainStatus: 'pending' | 'confirmed' | 'failed';
+  blockchainStatus: BlockchainStatus;
   transactionHash?: string;
+  chainId?: string;
+  network?: string;
+  contractAddress?: string;
+  blockNumber?: number;
+  submittedAt?: Date;
+  confirmedAt?: Date;
+  failureReason?: string;
+  idempotencyKey?: string;
+  version: number;
+  history: ICertificateHistory[];
   qrCodeDataUrl?: string;
   pdfFileName?: string;
   status: CertificateStatus;
@@ -36,7 +56,20 @@ export interface ICertificate extends Document {
   tags: string[];
   preparedBy?: string;
   approvedBy?: string;
+  retryCount?: number;
 }
+
+const CertificateHistorySchema = new Schema<ICertificateHistory>(
+  {
+    action: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    actor: { type: String },
+    changes: { type: Schema.Types.Mixed },
+    transactionHash: { type: String },
+    reason: { type: String },
+  },
+  { _id: false }
+);
 
 const CertificateSchema = new Schema<ICertificate>(
   {
@@ -60,11 +93,32 @@ const CertificateSchema = new Schema<ICertificate>(
     metadataCid: { type: String },
     metadataUrl: { type: String },
     blockchainHash: { type: String, index: true },
-    blockchainStatus: { type: String, enum: ['pending', 'confirmed', 'failed'], default: 'pending' },
+    blockchainStatus: {
+      type: String,
+      enum: ['none', 'pending', 'confirmed', 'failed'],
+      default: 'none',
+      index: true,
+    },
     transactionHash: { type: String, index: true },
+    chainId: { type: String },
+    network: { type: String, default: 'ethereum' },
+    contractAddress: { type: String },
+    blockNumber: { type: Number },
+    submittedAt: { type: Date },
+    confirmedAt: { type: Date },
+    failureReason: { type: String },
+    idempotencyKey: { type: String, index: true, sparse: true },
+    retryCount: { type: Number, default: 0 },
+    version: { type: Number, default: 1 },
+    history: { type: [CertificateHistorySchema], default: [] },
     qrCodeDataUrl: { type: String },
     pdfFileName: { type: String },
-    status: { type: String, enum: ['pending_approval', 'issued', 'verified', 'revoked', 'expired'], default: 'issued', index: true },
+    status: {
+      type: String,
+      enum: ['draft', 'pending_approval', 'issued', 'verified', 'revoked', 'expired', 'failed'],
+      default: 'draft',
+      index: true,
+    },
     revokedAt: { type: Date },
     revokedReason: { type: String },
     lastVerifiedAt: { type: Date },
@@ -75,5 +129,11 @@ const CertificateSchema = new Schema<ICertificate>(
   },
   { timestamps: true }
 );
+
+CertificateSchema.index({ institution: 1, createdAt: -1 });
+CertificateSchema.index({ institution: 1, status: 1 });
+CertificateSchema.index({ studentId: 1, createdAt: -1 });
+CertificateSchema.index({ blockchainStatus: 1, createdAt: -1 });
+CertificateSchema.index({ status: 1, blockchainStatus: 1 });
 
 export default model<ICertificate>('Certificate', CertificateSchema);

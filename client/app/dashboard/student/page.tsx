@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Award, Check, ChevronRight, Copy, QrCode, Share2, ShieldCheck } from 'lucide-react';
+import { Award, Check, ChevronRight, Copy, QrCode, Share2, ShieldCheck, Eye, Download, BadgeCheck } from 'lucide-react';
 import { DashboardShell } from '@/components/dashboard-shell';
 import {
   DashboardMetricCard,
@@ -237,15 +237,6 @@ export default function StudentDashboardPage() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <StatusBadge status={item.status} />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 rounded-xl text-xs gap-1.5 border-border/20 hover:border-accent/40 hover:bg-accent/10 transition-colors"
-                          onClick={(e) => { e.stopPropagation(); setSelectedCert(item); }}
-                        >
-                          <ShieldCheck className="size-3.5 text-accent" />
-                          <span>Verify</span>
-                        </Button>
                       </div>
                     </div>
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -261,6 +252,80 @@ export default function StudentDashboardPage() {
                         <div className="text-xs uppercase tracking-wide text-foreground/50">Verifications</div>
                         <div className="mt-1 text-foreground/80">{formatNumber(item.verificationCount)}</div>
                       </div>
+                    </div>
+
+                    {/* Student Action Toolbar: View, Download, QR Code, Share, Verify Credential */}
+                    <div className="mt-4 pt-3 border-t border-border/10 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 rounded-xl border border-border/15 font-semibold"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCert(item);
+                          }}
+                        >
+                          <Eye className="size-3.5 text-accent" />
+                          <span>View</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 rounded-xl border border-border/15 hover:bg-foreground/5 font-semibold"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCert(item);
+                          }}
+                        >
+                          <Download className="size-3.5 text-foreground/70" />
+                          <span>Download</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 rounded-xl border border-border/15 hover:bg-foreground/5 font-semibold"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCert(item);
+                          }}
+                        >
+                          <QrCode className="size-3.5 text-foreground/70" />
+                          <span>QR Code</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 rounded-xl border border-border/15 hover:bg-foreground/5 font-semibold"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const shareUrl = `${window.location.origin}/certificate/${item.certificateId}`;
+                            await navigator.clipboard.writeText(shareUrl);
+                            toast.success('Certificate link copied to clipboard!');
+                          }}
+                        >
+                          <Share2 className="size-3.5 text-foreground/70" />
+                          <span>Share</span>
+                        </Button>
+                      </div>
+
+                      <Link
+                        href={`/verify?id=${item.certificateId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-block"
+                      >
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs gap-1.5 rounded-xl border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-bold"
+                        >
+                          <BadgeCheck className="size-3.5 text-emerald-400" />
+                          <span>Verify Credential</span>
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 ))}

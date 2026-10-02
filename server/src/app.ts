@@ -11,6 +11,7 @@ import morgan from 'morgan';
 import path from 'path';
 import xssClean from 'xss-clean';
 import { env } from './config/env.js';
+import { authRateLimiter, globalRateLimiter, verificationRateLimiter } from './middlewares/rateLimiter.js';
 import authRoutes from './routes/authRoutes.js';
 import certificateRoutes from './routes/certificateRoutes.js';
 import verificationRoutes from './routes/verificationRoutes.js';
@@ -18,35 +19,11 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import explorerRoutes from './routes/explorerRoutes.js';
+import studentRoutes from './routes/studentRoutes.js';
+import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 export const app = express();
-
-const globalRateLimiter = rateLimit({
-  windowMs: env.RATE_LIMIT_WINDOW_MS,
-  max: process.env.NODE_ENV === 'development' ? 10000 : env.RATE_LIMIT_MAX,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests, please try again later.' },
-  skip: (req) => {
-    if (process.env.NODE_ENV === 'development') return true;
-    const ip = req.ip || req.socket.remoteAddress || '';
-    return ip === '127.0.0.1' || ip === '::1' || ip.includes('127.0.0.1');
-  },
-});
-
-const verificationRateLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1-minute window
-  max: process.env.NODE_ENV === 'development' ? 10000 : 500,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many verification requests, please try again later.' },
-  skip: (req) => {
-    if (process.env.NODE_ENV === 'development') return true;
-    const ip = req.ip || req.socket.remoteAddress || '';
-    return ip === '127.0.0.1' || ip === '::1' || ip.includes('127.0.0.1');
-  },
-});
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
@@ -73,13 +50,25 @@ app.use('/files', (req, res, next) => {
 }, express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/api/health', (_req, res) => res.json({ success: true, message: 'BlockCertify API healthy' }));
-app.use('/api/auth', authRoutes);
+app.get('/api/health/blockchain', async (_req, res) => {
+  try {
+    const { getBlockchainHealth } = await import('./services/blockchainService.js');
+    const health = await getBlockchainHealth();
+    const status = health.available ? 200 : 503;
+    res.status(status).json({ success: health.available, ...health });
+  } catch (err: unknown) {
+    res.status(503).json({ success: false, available: false, error: (err as Error)?.message || 'Unknown error' });
+  }
+});
+app.use('/api/auth', authRateLimiter, authRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/verification', verificationRateLimiter, verificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/explorer', explorerRoutes);
+app.use('/api/students', studentRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

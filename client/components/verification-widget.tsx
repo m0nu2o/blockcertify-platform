@@ -6,11 +6,12 @@ import Link from 'next/link';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { BadgeCheck, Ban, Layers, Link2, LoaderCircle, QrCode, Search, ShieldCheck, Download, Award, Sparkles, ExternalLink, FileText, Upload, Eye, CheckCircle2 } from 'lucide-react';
+import { BadgeCheck, Ban, Layers, Link2, LoaderCircle, QrCode, Search, ShieldCheck, Download, Award, Sparkles, ExternalLink, FileText, Upload, Eye, CheckCircle2, AlertTriangle, Clock, XCircle } from 'lucide-react';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 import { 
   OfficialDiplomaCanvas, 
   BlockchainAuditReceipt,
@@ -28,7 +29,11 @@ type VerifyMode = 'id' | 'hash' | 'transaction' | 'qr' | 'bulk';
 
 type VerificationResult = {
   valid: boolean;
+  verificationState?: 'valid' | 'revoked' | 'expired' | 'blockchain_pending' | 'blockchain_failed' | 'integrity_failed' | 'not_found';
+  verificationMessage?: string;
   error?: string;
+  onChainValid?: boolean;
+  contractAddress?: string;
   certificate?: {
     certificateId: string;
     studentName: string;
@@ -44,6 +49,7 @@ type VerificationResult = {
     grade?: string;
     approvedBy?: string;
     expiryDate?: string;
+    ipfsHash?: string;
   };
 };
 
@@ -115,18 +121,37 @@ export function VerificationWidget() {
         qr: '/verification/qr',
       } satisfies Record<Exclude<VerifyMode, 'bulk'>, string>;
       const body = activeMode === 'id' ? { certificateId: payload.trim() } : activeMode === 'hash' ? { hash: payload.trim() } : activeMode === 'transaction' ? { transactionHash: payload.trim() } : { payload: payload.trim() };
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${routeMap[activeMode]}`, {
+      const response = await apiFetch<{ data?: VerificationResult; message?: string }>(routeMap[activeMode], {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = (await response.json()) as { data?: VerificationResult; message?: string };
-      if (!response.ok || !data.data) throw new Error(data.message || 'Verification failed');
-      setResult(data.data);
-      toast.success('Certificate verified successfully!');
+      if (!response?.data) throw new Error(response?.message || 'Verification failed');
+      setResult(response.data);
+      if (response.data.valid) {
+        toast.success('Certificate verified successfully!');
+      } else if (response.data.verificationState === 'revoked') {
+        toast.error('Notice: This credential has been REVOKED.');
+      } else if (response.data.verificationState === 'expired') {
+        toast.warning('Notice: This credential has EXPIRED.');
+      } else if (response.data.verificationState === 'blockchain_pending') {
+        toast.info('Credential recorded; blockchain confirmation pending.');
+      } else if (response.data.verificationState === 'blockchain_failed') {
+        toast.error('Blockchain anchoring failed for this credential.');
+      } else if (response.data.verificationState === 'integrity_failed') {
+        toast.error('Cryptographic integrity check failed.');
+      } else {
+        toast.error(response.data.verificationMessage || 'Verification failed');
+      }
     } catch (error) {
-      setResult({ valid: false, error: error instanceof Error ? error.message : 'Verification failed' });
-      toast.error('Unable to verify credential.');
+      const msg = error instanceof Error ? error.message : 'Verification failed';
+      const isNotFound = msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('could not find');
+      setResult({
+        valid: false,
+        verificationState: isNotFound ? 'not_found' : 'integrity_failed',
+        error: msg,
+        verificationMessage: msg,
+      });
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -160,21 +185,20 @@ export function VerificationWidget() {
     }
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/verification/bulk`, {
+      const response = await apiFetch<{ data?: BulkVerificationEntry[]; message?: string }>('/verification/bulk', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ certificateIds: lines }),
       });
-      const data = (await response.json()) as { data?: BulkVerificationEntry[]; message?: string };
-      if (!response.ok || !data.data) throw new Error(data.message || 'Bulk verification failed');
-      setBulkResults(data.data);
-      const firstValid = data.data.find((e) => e.success && e.data?.valid && e.data?.certificate);
+      if (!response?.data) throw new Error(response?.message || 'Bulk verification failed');
+      setBulkResults(response.data);
+      const firstValid = response.data.find((e) => e.success && e.data?.valid && e.data?.certificate);
       if (firstValid?.data) {
         setResult(firstValid.data);
       }
-      toast.success(`Verified ${data.data.length} certificates.`);
+      toast.success(`Verified ${response.data.length} certificates.`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Bulk verification failed');
+      const msg = error instanceof Error ? error.message : 'Bulk verification failed';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -185,12 +209,13 @@ export function VerificationWidget() {
     if (newMode === 'id') {
       setValue(result?.certificate?.certificateId || 'BC-5A4A9D6E');
     } else if (newMode === 'hash') {
-      setValue(result?.certificate?.fileHash || '889fb97aa16aa8ffad7499c307801a737f40ea8686049fefd90c5bff48d3c810');
+      setValue(result?.certificate?.fileHash || 'e3043a1c700e8114c54547bc245aa8731bd14586e0755635fe125cb8470bf7de');
     } else if (newMode === 'transaction') {
-      setValue(result?.certificate?.transactionHash || '0x4cfcfeb4467d1c98f4d1ffde259a85befef057f162991a255ace0261430d1820');
+      setValue(result?.certificate?.transactionHash || '0x9e2c2e198c0cca7de89d959cda7c3e858c29c40a2d1a2d3657f99c3edfb18503');
     } else if (newMode === 'bulk') {
       if (!bulkValue) {
-        setBulkValue(result?.certificate?.certificateId ? `${result.certificate.certificateId}\nBC-5A4A9D6E` : 'BC-5A4A9D6E\nBC-5383A1E9');
+        const certId = result?.certificate?.certificateId;
+        setBulkValue(certId && certId !== 'BC-5A4A9D6E' ? `${certId}\nBC-5A4A9D6E` : 'BC-5A4A9D6E\nBC-5383A1E9');
       }
     }
   };
@@ -221,22 +246,68 @@ export function VerificationWidget() {
         iconClassName: 'border border-accent/30 bg-accent/10',
       };
     }
-    if (result?.valid && result.certificate) {
-      return {
-        title: 'Verified Digital Credential',
-        description: 'Authentic document anchored to the blockchain network.',
-        icon: <BadgeCheck className="size-6 text-success" />,
-        iconClassName: 'border border-success/30 bg-success/10',
-      };
+
+    if (result) {
+      const state = result.verificationState || (result.valid ? 'valid' : result.error ? 'not_found' : undefined);
+
+      if (state === 'valid' && result.certificate) {
+        return {
+          title: 'Authentic & Verified Credential',
+          description: result.verificationMessage || 'Credential Verified — This credential matches the record registered by the issuing institution.',
+          icon: <BadgeCheck className="size-6 text-emerald-500" />,
+          iconClassName: 'border border-emerald-500/30 bg-emerald-500/10',
+        };
+      }
+      if (state === 'revoked') {
+        return {
+          title: 'Credential Revoked',
+          description: result.verificationMessage || 'Credential Revoked — This credential was previously issued but has been revoked by the issuing institution.',
+          icon: <Ban className="size-6 text-rose-500" />,
+          iconClassName: 'border border-rose-500/30 bg-rose-500/10',
+        };
+      }
+      if (state === 'expired') {
+        return {
+          title: 'Credential Expired',
+          description: result.verificationMessage || 'Credential Expired — This credential was issued successfully but its validity period has expired.',
+          icon: <Clock className="size-6 text-amber-500" />,
+          iconClassName: 'border border-amber-500/30 bg-amber-500/10',
+        };
+      }
+      if (state === 'blockchain_pending') {
+        return {
+          title: 'Verification Pending',
+          description: result.verificationMessage || 'Verification Pending — This credential has been recorded, but its blockchain transaction has not yet been confirmed.',
+          icon: <Clock className="size-6 text-sky-400 animate-pulse" />,
+          iconClassName: 'border border-sky-500/30 bg-sky-500/10',
+        };
+      }
+      if (state === 'blockchain_failed') {
+        return {
+          title: 'Blockchain Verification Unavailable',
+          description: result.verificationMessage || 'Blockchain Verification Unavailable — The credential record exists, but its blockchain registration could not be confirmed.',
+          icon: <AlertTriangle className="size-6 text-rose-500" />,
+          iconClassName: 'border border-rose-500/30 bg-rose-500/10',
+        };
+      }
+      if (state === 'integrity_failed') {
+        return {
+          title: 'Credential Integrity Check Failed',
+          description: result.verificationMessage || 'Credential Integrity Check Failed — The provided credential does not match the original registered record.',
+          icon: <XCircle className="size-6 text-rose-500" />,
+          iconClassName: 'border border-rose-500/30 bg-rose-500/10',
+        };
+      }
+      if (state === 'not_found' || result.error) {
+        return {
+          title: 'Credential Not Found',
+          description: result.verificationMessage || result.error || 'Credential Not Found — We could not find a credential matching the provided Certificate ID.',
+          icon: <Search className="size-6 text-foreground/50" />,
+          iconClassName: 'border border-foreground/20 bg-foreground/5',
+        };
+      }
     }
-    if (result?.error) {
-      return {
-        title: 'Credential Not Verified',
-        description: result.error,
-        icon: <Ban className="size-6 text-danger" />,
-        iconClassName: 'border border-danger/30 bg-danger/10',
-      };
-    }
+
     return {
       title: 'Awaiting Document Input',
       description: 'Choose a verification method on the left to begin cryptographic check.',
@@ -338,7 +409,7 @@ export function VerificationWidget() {
               <button 
                 type="button" 
                 onClick={() => { 
-                  const h = '889fb97aa16aa8ffad7499c307801a737f40ea8686049fefd90c5bff48d3c810'; 
+                  const h = 'e3043a1c700e8114c54547bc245aa8731bd14586e0755635fe125cb8470bf7de'; 
                   setValue(h); 
                   verify(h, 'hash'); 
                 }} 
@@ -377,7 +448,7 @@ export function VerificationWidget() {
               <button 
                 type="button" 
                 onClick={() => { 
-                  const tx = '0x4cfcfeb4467d1c98f4d1ffde259a85befef057f162991a255ace0261430d1820'; 
+                  const tx = '0x9e2c2e198c0cca7de89d959cda7c3e858c29c40a2d1a2d3657f99c3edfb18503'; 
                   setValue(tx); 
                   verify(tx, 'transaction'); 
                 }} 
@@ -448,11 +519,11 @@ export function VerificationWidget() {
               Batch Verification List ({bulkResults.length})
             </div>
             <div className="grid gap-2.5 max-h-64 overflow-y-auto pr-1">
-              {bulkResults.map((entry) => {
+              {bulkResults.map((entry, index) => {
                 const isSelected = result?.certificate?.certificateId === entry.certificateId;
                 return (
                   <div 
-                    key={entry.certificateId} 
+                    key={`${entry.certificateId}-${index}`} 
                     className={`rounded-xl border p-3 transition ${
                       isSelected 
                         ? 'border-accent/60 bg-accent/10 shadow-sm' 
@@ -498,6 +569,62 @@ export function VerificationWidget() {
 
         {result?.certificate ? (
           <div className="space-y-4">
+            {result.verificationState === 'revoked' && (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/15 p-4 text-sm text-destructive flex items-center gap-3">
+                <Ban className="size-5 shrink-0 text-destructive" />
+                <div>
+                  <div className="font-bold">REVOKED CREDENTIAL</div>
+                  <div className="text-xs text-destructive/90 mt-0.5">
+                    Credential Revoked — This credential was previously issued but has been revoked by the issuing institution.
+                  </div>
+                </div>
+              </div>
+            )}
+            {result.verificationState === 'expired' && (
+              <div className="rounded-2xl border border-amber-500/40 bg-amber-500/15 p-4 text-sm text-amber-500 flex items-center gap-3">
+                <Clock className="size-5 shrink-0 text-amber-500" />
+                <div>
+                  <div className="font-bold">EXPIRED CREDENTIAL</div>
+                  <div className="text-xs text-amber-500/90 mt-0.5">
+                    Credential Expired — This credential was issued successfully but its validity period has expired.
+                  </div>
+                </div>
+              </div>
+            )}
+            {result.verificationState === 'blockchain_pending' && (
+              <div className="rounded-2xl border border-sky-500/40 bg-sky-500/15 p-4 text-sm text-sky-400 flex items-center gap-3">
+                <Clock className="size-5 shrink-0 text-sky-400 animate-pulse" />
+                <div>
+                  <div className="font-bold">VERIFICATION PENDING</div>
+                  <div className="text-xs text-sky-300/90 mt-0.5">
+                    Verification Pending — This credential has been recorded, but its blockchain transaction has not yet been confirmed.
+                  </div>
+                </div>
+              </div>
+            )}
+            {result.verificationState === 'blockchain_failed' && (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/15 p-4 text-sm text-destructive flex items-center gap-3">
+                <AlertTriangle className="size-5 shrink-0 text-destructive" />
+                <div>
+                  <div className="font-bold">BLOCKCHAIN VERIFICATION UNAVAILABLE</div>
+                  <div className="text-xs text-destructive/90 mt-0.5">
+                    Blockchain Verification Unavailable — The credential record exists, but its blockchain registration could not be confirmed.
+                  </div>
+                </div>
+              </div>
+            )}
+            {result.verificationState === 'integrity_failed' && (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/15 p-4 text-sm text-destructive flex items-center gap-3">
+                <AlertTriangle className="size-5 shrink-0 text-destructive" />
+                <div>
+                  <div className="font-bold">INTEGRITY CHECK FAILED</div>
+                  <div className="text-xs text-destructive/90 mt-0.5">
+                    Credential Integrity Check Failed — The provided credential does not match the original registered record.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex p-1 bg-card/80 border border-border/15 rounded-xl gap-1">
               <button
                 type="button"

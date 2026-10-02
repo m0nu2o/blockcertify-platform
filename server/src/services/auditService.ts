@@ -21,15 +21,19 @@ export const createAuditLog = async ({
   metadata?: Record<string, unknown>;
   severity?: 'info' | 'warning' | 'critical';
 }) => {
-  return AuditLog.create({
-    actor,
-    actorEmail,
-    action,
-    entity,
-    entityId,
-    metadata: metadata || {},
-    ipAddress: req?.ip,
-    userAgent: req?.headers['user-agent'],
-    severity,
-  });
+  try {
+    return await AuditLog.create({
+      actor,
+      actorEmail,
+      action,
+      entity,
+      entityId,
+      metadata: metadata || {},
+      ipAddress: req?.ip,
+      userAgent: req?.headers?.['user-agent'],
+      severity,
+    });
+  } catch {
+    return null;
+  }
 };

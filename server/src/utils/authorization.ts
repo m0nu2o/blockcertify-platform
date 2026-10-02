@@ -1,5 +1,6 @@
 
 import User, { IUser } from '../models/User.js';
+import Student from '../models/Student.js';
 import { ICertificate } from '../models/Certificate.js';
 import { ApiError } from './ApiError.js';
 
@@ -8,7 +9,7 @@ type RequestUser = Express.Request['user'];
 type CertificateAccessScope =
   | { role: 'admin' }
   | { role: 'institution'; institutionId: string }
-  | { role: 'student'; studentId: string };
+  | { role: 'student'; studentId: string; email?: string };
 
 const normalizeObjectId = (value: unknown): string | undefined => {
   if (!value) return undefined;
@@ -62,13 +63,18 @@ export const getCertificateAccessScope = async (user: RequestUser): Promise<Cert
     return { role: 'institution', institutionId };
   }
 
-  const studentId = (hydratedUser.student as { studentId?: string } | null)?.studentId;
+  let studentId = (hydratedUser.student as { studentId?: string } | null)?.studentId;
 
-  if (!studentId) {
-    throw new ApiError(403, 'Student access is not configured for this account');
+  if (!studentId && hydratedUser.email) {
+    const studentDoc = await Student.findOne({ email: hydratedUser.email });
+    if (studentDoc) {
+      studentId = studentDoc.studentId;
+      hydratedUser.student = studentDoc._id;
+      await hydratedUser.save();
+    }
   }
 
-  return { role: 'student', studentId };
+  return { role: 'student', studentId: studentId || '', email: hydratedUser.email };
 };
 
 export const buildCertificateAccessQuery = async (user: RequestUser): Promise<Record<string, unknown>> => {
@@ -82,10 +88,18 @@ export const buildCertificateAccessQuery = async (user: RequestUser): Promise<Re
     return { institution: scope.institutionId };
   }
 
-  return { studentId: scope.studentId };
+  if (scope.studentId && scope.email) {
+    return { $or: [{ studentId: scope.studentId }, { email: scope.email }] };
+  }
+
+  if (scope.studentId) {
+    return { studentId: scope.studentId };
+  }
+
+  return { email: scope.email || 'none' };
 };
 
-export const assertCertificateAccess = async (user: RequestUser, certificate: Pick<ICertificate, 'institution' | 'student' | 'studentId'>) => {
+export const assertCertificateAccess = async (user: RequestUser, certificate: Pick<ICertificate, 'institution' | 'student' | 'studentId' | 'email'>) => {
   const scope = await getCertificateAccessScope(user);
 
   if (scope.role === 'admin') {
@@ -99,15 +113,19 @@ export const assertCertificateAccess = async (user: RequestUser, certificate: Pi
       return;
     }
 
-    throw new ApiError(403, 'Certificate access denied');
+    throw new ApiError(403, 'Cross-institution operations are strictly forbidden');
   }
 
-  if (certificate.studentId === scope.studentId) {
+  if (scope.studentId && certificate.studentId === scope.studentId) {
     return;
   }
 
   const certificateStudentId = normalizeObjectId(certificate.student);
   if (certificateStudentId && certificateStudentId === scope.studentId) {
+    return;
+  }
+
+  if (scope.email && certificate.email && certificate.email.toLowerCase() === scope.email.toLowerCase()) {
     return;
   }
 
@@ -118,3 +136,34 @@ export const sanitizeUserForAccess = (user: Pick<IUser, '_id' | 'role'>): Pick<I
   _id: user._id,
   role: user.role,
 });
+
+export const resolveAuthorizedInstitutionId = async (
+  user: RequestUser,
+  requestedInstitutionId?: string
+): Promise<string> => {
+  const scope = await getCertificateAccessScope(user);
+
+  if (scope.role === 'admin') {
+    if (requestedInstitutionId) {
+      return requestedInstitutionId;
+    }
+    throw new ApiError(400, 'Institution ID is required for administrator operations');
+  }
+
+  if (scope.role === 'institution') {
+    // For authenticated institution users, their authenticated institution ID is authoritative.
+    return scope.institutionId;
+  }
+
+  throw new ApiError(403, 'User is not authorized for institution operations');
+};
+
+export const assertInstitutionOwnership = async (
+  user: RequestUser,
+  targetInstitutionId: string
+): Promise<void> => {
+  const scope = await getCertificateAccessScope(user);
+  if (scope.role === 'admin') return;
+  if (scope.role === 'institution' && scope.institutionId === normalizeObjectId(targetInstitutionId)) return;
+  throw new ApiError(403, 'Cross-institution operations are strictly forbidden');
+};

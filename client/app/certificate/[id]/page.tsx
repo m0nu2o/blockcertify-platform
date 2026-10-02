@@ -13,6 +13,7 @@ import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 import { 
   OfficialDiplomaCanvas, 
   BlockchainAuditReceipt,
@@ -63,13 +64,11 @@ export default function CertificatePublicPage() {
     if (!id) return;
     const load = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/verification/id`, {
+        const data = await apiFetch<{ data?: { certificate?: CertificateData }; message?: string }>('/verification/id', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ certificateId: id }),
         });
-        const data = await res.json();
-        if (!res.ok || !data.data?.certificate) throw new Error(data.message || 'Certificate not found');
+        if (!data.data?.certificate) throw new Error(data.message || 'Certificate not found');
         const certificateData = data.data.certificate as CertificateData;
         setCert(certificateData);
         const stored = getStoredTemplate();

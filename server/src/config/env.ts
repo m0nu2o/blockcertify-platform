@@ -23,6 +23,7 @@ const envSchema = z.object({
   ETH_PRIVATE_KEY: z.string().default(''),
   ETH_CONTRACT_ADDRESS: z.string().default(''),
   ETH_NETWORK_NAME: z.string().default('hardhat'),
+  BLOCKCHAIN_DEMO_MODE: z.string().default('false'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().default(200),
 });

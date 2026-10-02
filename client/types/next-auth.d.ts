@@ -9,6 +9,7 @@ declare module 'next-auth' {
       accessToken: string;
       institutionId?: string;
       institutionStatus?: 'pending' | 'approved' | 'suspended' | 'rejected';
+      subscriptionTier?: 'free' | 'Starter' | 'Growth' | 'Enterprise';
     };
   }
 
@@ -18,6 +19,7 @@ declare module 'next-auth' {
     accessToken: string;
     institutionId?: string;
     institutionStatus?: 'pending' | 'approved' | 'suspended' | 'rejected';
+    subscriptionTier?: 'free' | 'Starter' | 'Growth' | 'Enterprise';
   }
 }
 
@@ -28,5 +30,6 @@ declare module 'next-auth/jwt' {
     accessToken: string;
     institutionId?: string;
     institutionStatus?: 'pending' | 'approved' | 'suspended' | 'rejected';
+    subscriptionTier?: 'free' | 'Starter' | 'Growth' | 'Enterprise';
   }
 }

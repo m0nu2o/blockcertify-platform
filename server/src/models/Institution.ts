@@ -20,6 +20,13 @@ export interface IInstitution extends Document {
   suspensionReason?: string;
   contactPerson?: string;
   user?: Types.ObjectId;
+  subscription: {
+    tier: 'free' | 'Starter' | 'Growth' | 'Enterprise';
+    status?: 'pending' | 'active' | 'rejected' | 'expired' | 'cancelled';
+    updatedAt?: Date;
+    expiresAt?: Date;
+    subscriptionId?: Types.ObjectId;
+  };
   stats: {
     certificatesIssued: number;
     certificatesRevoked: number;
@@ -45,6 +52,13 @@ const InstitutionSchema = new Schema<IInstitution>(
     suspensionReason: { type: String },
     contactPerson: { type: String },
     user: { type: Schema.Types.ObjectId, ref: 'User' },
+    subscription: {
+      tier: { type: String, enum: ['free', 'Starter', 'Growth', 'Enterprise'], default: 'free' },
+      status: { type: String, enum: ['pending', 'active', 'rejected', 'expired', 'cancelled'], default: 'active' },
+      updatedAt: { type: Date, default: Date.now },
+      expiresAt: { type: Date },
+      subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription' },
+    },
     stats: {
       certificatesIssued: { type: Number, default: 0 },
       certificatesRevoked: { type: Number, default: 0 },

@@ -10,6 +10,10 @@ jest.mock('../services/emailService.js', () => ({
   sendEmail: jest.fn(),
 }));
 
+jest.mock('../services/auditService.js', () => ({
+  createAuditLog: jest.fn().mockResolvedValue(undefined),
+}));
+
 import User from '../models/User.js';
 import { sendEmail } from '../services/emailService.js';
 import { forgotPassword } from '../controllers/authController.js';
@@ -32,9 +36,9 @@ describe('forgotPassword', () => {
       .mockResolvedValueOnce(null);
 
     forgotPassword(req as never, resExisting as never, next);
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => setTimeout(resolve, 20));
     forgotPassword(req as never, resMissing as never, next);
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(resExisting.status).toHaveBeenCalledWith(200);
     expect(resMissing.status).toHaveBeenCalledWith(200);

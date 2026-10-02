@@ -24,3 +24,6 @@ logs
 .railway
 client/public/sw.js
 client/public/workbox-*.js
+*.cfg
+server/mongod.cfg
+*.tsbuildinfo

@@ -19,10 +19,14 @@ contract BlockCertifyRegistry {
     mapping(address => bool) public authorizedIssuers;
     address public owner;
 
+    string public constant VERSION = '1.1.0';
+
     event CertificateIssued(string indexed certificateId, string metadataHash, string fileHash, string metadataUri, address indexed issuer);
     event CertificateRevoked(string indexed certificateId, string reason, address indexed revoker);
     event CertificateUpdated(string indexed certificateId, string metadataHash, string metadataUri, address indexed updater);
     event IssuerAuthorizationUpdated(address indexed issuer, bool allowed);
+    event IssuerAuthorized(address indexed issuer);
+    event IssuerRevoked(address indexed issuer);
 
     modifier onlyOwner() {
         require(msg.sender == owner, 'Not owner');
@@ -42,6 +46,11 @@ contract BlockCertifyRegistry {
     function setIssuerAuthorization(address issuer, bool allowed) external onlyOwner {
         authorizedIssuers[issuer] = allowed;
         emit IssuerAuthorizationUpdated(issuer, allowed);
+        if (allowed) {
+            emit IssuerAuthorized(issuer);
+        } else {
+            emit IssuerRevoked(issuer);
+        }
     }
 
     function issueCertificate(string calldata certificateId, string calldata metadataHash, string calldata fileHash, string calldata metadataUri) external onlyAuthorizedIssuer {
@@ -73,6 +82,7 @@ contract BlockCertifyRegistry {
         CertificateRecord storage record = certificates[certificateId];
         require(record.issuedAt != 0, 'Certificate missing');
         require(!record.revoked, 'Already revoked');
+        require(msg.sender == owner || record.issuer == msg.sender, 'Not certificate issuer');
         record.revoked = true;
         record.updatedAt = block.timestamp;
         record.reason = reason;
@@ -83,6 +93,7 @@ contract BlockCertifyRegistry {
         CertificateRecord storage record = certificates[certificateId];
         require(record.issuedAt != 0, 'Certificate missing');
         require(!record.revoked, 'Revoked certificate');
+        require(msg.sender == owner || record.issuer == msg.sender, 'Not certificate issuer');
         record.metadataHash = metadataHash;
         record.metadataUri = metadataUri;
         record.updatedAt = block.timestamp;

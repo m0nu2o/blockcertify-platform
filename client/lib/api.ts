@@ -1,5 +1,5 @@
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export async function apiFetch<T>(path: string, options?: RequestInit & { token?: string; timeoutMs?: number }) {
   const headers = new Headers(options?.headers || {});

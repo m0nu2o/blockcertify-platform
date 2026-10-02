@@ -33,9 +33,32 @@ export function SettingsDropdown({
   const [twoFactor, setTwoFactor] = useState(false);
 
   const handleClearCache = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    toast.success('Local cache cleared successfully! Reloading...');
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith('blockcertify-') ||
+          key === 'web3_account' ||
+          key === 'font' ||
+          key === 'language' ||
+          key === 'compactMode')
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+    const sessionKeysToRemove: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && (key.startsWith('blockcertify-') || key === 'web3_account')) {
+        sessionKeysToRemove.push(key);
+      }
+    }
+    sessionKeysToRemove.forEach((k) => sessionStorage.removeItem(k));
+
+    toast.success('BlockCertify application cache cleared successfully! Reloading...');
     setTimeout(() => window.location.reload(), 1000);
   };
 

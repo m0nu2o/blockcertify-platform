@@ -1,13 +1,14 @@
 
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 import Certificate from '../models/Certificate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/response.js';
 import { createAuditLog } from '../services/auditService.js';
-import { bulkIssueCertificates, CertificateUpdateInput, issueCertificate, revokeCertificate, updateCertificate, approveCertificate, revokeBulk } from '../services/certificateService.js';
+import { bulkIssueCertificates, CertificateUpdateInput, issueCertificate, revokeCertificate, updateCertificate, approveCertificate, revokeBulk, createCertificatePdfBuffer } from '../services/certificateService.js';
 import { exportCertificatesCsv, exportCertificatesExcel, exportCertificatesPdf, exportAuditLogsCsv, exportAuditLogsPdf } from '../services/exportService.js';
-import { buildCertificateAccessQuery, assertCertificateAccess } from '../utils/authorization.js';
+import { buildCertificateAccessQuery, assertCertificateAccess, resolveAuthorizedInstitutionId } from '../utils/authorization.js';
 import { ApiError } from '../utils/ApiError.js';
 
 const issueSchema = z.object({
@@ -17,11 +18,18 @@ const issueSchema = z.object({
   degree: z.string().min(1, 'Degree / Grade is required'),
   course: z.string().min(1, 'Course is required'),
   department: z.string().min(1, 'Department is required'),
-  institutionId: z.string().min(1, 'Institution ID is required'),
-  institutionName: z.string().min(1, 'Institution name is required'),
+  institutionId: z.string().optional().default(''),
+  institutionName: z.string().optional().default(''),
   graduationYear: z.coerce.number(),
   issueDate: z.string(),
   expiryDate: z.string().optional().or(z.literal('')),
+});
+
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  search: z.string().optional().default(''),
+  status: z.string().optional().default(''),
 });
 
 const updateCertificateSchema = z
@@ -51,22 +59,54 @@ const assertNoForbiddenKeys = (value: unknown, path = 'body') => {
   }
 
   const record = value as Record<string, unknown>;
-  for (const key of Object.getOwnPropertyNames(record)) {
-    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-      throw new ApiError(400, `Forbidden key detected at ${path}`);
+  const forbidden = ['status', 'blockchainStatus', 'fileHash', 'metadataHash', 'transactionHash', 'history', 'version'];
+  forbidden.forEach((key) => {
+    if (key in record) {
+      throw new ApiError(400, `Direct modification of ${key} is forbidden`);
     }
+  });
 
-    assertNoForbiddenKeys(record[key], `${path}.${key}`);
-  }
+  Object.entries(record).forEach(([key, val]) => {
+    assertNoForbiddenKeys(val, `${path}.${key}`);
+  });
 };
 
 export const createCertificate = asyncHandler(async (req: Request, res: Response) => {
   const body = issueSchema.parse(req.body);
-  const file = req.file;
-  if (!file) throw new Error('Certificate PDF is required');
+  const requestedInstId = body.institutionId?.trim() || undefined;
+  const authorizedInstitutionId = await resolveAuthorizedInstitutionId(req.user, requestedInstId);
+  body.institutionId = authorizedInstitutionId;
+
+  let pdfBuffer = req.file?.buffer;
+  let pdfFileName = req.file?.originalname || `${body.studentId || 'certificate'}.pdf`;
+
+  if (!pdfBuffer) {
+    const certificateId = `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
+    const verificationUrl = `${process.env.PUBLIC_VERIFY_URL || process.env.CLIENT_URL || 'http://localhost:3000'}/verify?id=${certificateId}`;
+    pdfBuffer = await createCertificatePdfBuffer({
+      certificateId,
+      studentName: body.studentName,
+      studentId: body.studentId,
+      degree: body.degree,
+      course: body.course,
+      department: body.department,
+      institutionName: body.institutionName || 'Issuing Institution',
+      issueDate: body.issueDate,
+      expiryDate: body.expiryDate || undefined,
+      verificationUrl,
+    });
+    pdfFileName = `${certificateId}.pdf`;
+    (body as any).certificateId = certificateId;
+  }
 
   const draft = req.body.draft === 'true';
-  const certificate = await issueCertificate({ payload: body, pdfBuffer: file.buffer, pdfFileName: file.originalname, actorId: req.user!._id, draft });
+  const certificate = await issueCertificate({
+    payload: body,
+    pdfBuffer: pdfBuffer!,
+    pdfFileName,
+    actorId: req.user!._id,
+    draft,
+  });
 
   await createAuditLog({
     req,
@@ -83,8 +123,7 @@ export const createCertificate = asyncHandler(async (req: Request, res: Response
 
 export const createBulkCertificates = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) throw new Error('CSV file is required');
-  const accessQuery = await buildCertificateAccessQuery(req.user);
-  const institutionId = typeof accessQuery.institution === 'string' ? accessQuery.institution : String(req.body.institutionId || '');
+  const institutionId = await resolveAuthorizedInstitutionId(req.user, req.body.institutionId);
   const records = await bulkIssueCertificates({ csvBuffer: req.file.buffer, institutionId, actorId: req.user!._id });
 
   await createAuditLog({
@@ -100,24 +139,23 @@ export const createBulkCertificates = asyncHandler(async (req: Request, res: Res
 });
 
 export const listCertificates = asyncHandler(async (req: Request, res: Response) => {
-  const { page = '1', limit = '10', search = '', status = '' } = req.query;
+  const { page, limit, search, status } = listQuerySchema.parse(req.query);
   const accessQuery = await buildCertificateAccessQuery(req.user);
   const query: Record<string, unknown> = { ...accessQuery };
 
-  if (search) {
-    query.$or = [{ studentName: { $regex: search, $options: 'i' } }, { certificateId: { $regex: search, $options: 'i' } }];
+  if (search.trim()) {
+    const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    query.$or = [{ studentName: { $regex: escapedSearch, $options: 'i' } }, { certificateId: { $regex: escapedSearch, $options: 'i' } }];
   }
 
-  if (status) query.status = status;
+  if (status.trim()) query.status = status.trim();
 
-  const pageNumber = Number(page);
-  const pageSize = Number(limit);
   const [items, total] = await Promise.all([
-    Certificate.find(query).sort({ createdAt: -1 }).skip((pageNumber - 1) * pageSize).limit(pageSize),
+    Certificate.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
     Certificate.countDocuments(query),
   ]);
 
-  return sendSuccess(res, { items, total, page: pageNumber, limit: pageSize }, 'Certificates fetched');
+  return sendSuccess(res, { items, total, page, limit }, 'Certificates fetched');
 });
 
 export const getCertificate = asyncHandler(async (req: Request, res: Response) => {
@@ -167,19 +205,20 @@ export const updateCertificateController = asyncHandler(async (req: Request, res
 
 export const exportCertificatesController = asyncHandler(async (req: Request, res: Response) => {
   const type = String(req.params.type);
+  const accessQuery = await buildCertificateAccessQuery(req.user);
   if (type === 'csv') {
-    const csv = await exportCertificatesCsv();
+    const csv = await exportCertificatesCsv(accessQuery);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="certificates.csv"');
     return res.send(csv);
   }
   if (type === 'xlsx') {
-    const xlsx = await exportCertificatesExcel();
+    const xlsx = await exportCertificatesExcel(accessQuery);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="certificates.xlsx"');
     return res.send(xlsx);
   }
-  const pdf = await exportCertificatesPdf();
+  const pdf = await exportCertificatesPdf(accessQuery);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'attachment; filename="certificates.pdf"');
   return res.send(pdf);
@@ -205,14 +244,17 @@ export const approveCertificateController = asyncHandler(async (req: Request, re
 });
 
 export const exportAuditLogsController = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== 'admin') {
+    throw new ApiError(403, 'Audit log export is restricted to administrators');
+  }
   const type = String(req.params.type);
   if (type === 'csv') {
-    const csv = await exportAuditLogsCsv();
+    const csv = await exportAuditLogsCsv({});
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="audit-logs.csv"');
     return res.send(csv);
   }
-  const pdf = await exportAuditLogsPdf();
+  const pdf = await exportAuditLogsPdf({});
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'attachment; filename="audit-logs.pdf"');
   return res.send(pdf);

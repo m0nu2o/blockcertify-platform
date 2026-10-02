@@ -13,11 +13,11 @@ import { randomToken, sha256 } from '../utils/hash.js';
 import { sendEmail } from '../services/emailService.js';
 import { ApiError } from '../utils/ApiError.js';
 
-const registerSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(8),
-  role: z.enum(['admin', 'institution', 'student']),
+const publicRegisterSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  role: z.enum(['institution', 'student']),
   institutionName: z.string().optional(),
   studentId: z.string().optional(),
 });
@@ -26,12 +26,23 @@ const loginSchema = z.object({ email: z.string().email(), password: z.string().m
 const FORGOT_PASSWORD_MESSAGE = 'If that email exists, a reset link has been sent.';
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
-  const body = registerSchema.parse(req.body);
+  // Explicitly prevent public creation of admin accounts
+  if (req.body && req.body.role === 'admin') {
+    throw new ApiError(403, 'Administrator accounts cannot be registered publicly');
+  }
+
+  const body = publicRegisterSchema.parse(req.body);
   const existing = await User.findOne({ email: body.email });
   if (existing) throw new ApiError(409, 'Email already registered');
 
   const password = await bcrypt.hash(body.password, 12);
-  const user = await User.create({ name: body.name, email: body.email, password, role: body.role });
+  const user = await User.create({
+    name: body.name,
+    email: body.email,
+    password,
+    role: body.role,
+    subscription: { tier: 'free', updatedAt: new Date() },
+  });
 
   if (body.role === 'institution' && body.institutionName) {
     const institution = await Institution.create({
@@ -41,6 +52,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       contactPerson: body.name,
       user: user._id,
       status: 'pending',
+      subscription: { tier: 'free', updatedAt: new Date() },
     });
     user.institution = institution._id;
     await user.save();
@@ -81,6 +93,10 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({ email: body.email }).populate('institution student');
   if (!user) throw new ApiError(401, 'Invalid credentials');
 
+  if (!user.isActive) {
+    throw new ApiError(401, 'User account is deactivated');
+  }
+
   const match = await bcrypt.compare(body.password, user.password);
   if (!match) throw new ApiError(401, 'Invalid credentials');
 
@@ -102,6 +118,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
         avatar: user.avatar,
         institution: user.institution,
         student: user.student,
+        subscription: user.subscription || { tier: 'free' },
       },
     },
     'Login successful'
@@ -110,6 +127,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id).select('-password').populate('institution student');
+  if (!user) throw new ApiError(404, 'User not found');
   return sendSuccess(res, user, 'Current user');
 });
 
@@ -117,7 +135,7 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   const email = z.string().email().parse(req.body.email);
   const user = await User.findOne({ email });
 
-  if (user) {
+  if (user && user.isActive !== false) {
     const rawToken = randomToken();
     user.resetPasswordToken = sha256(rawToken);
     user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
@@ -129,14 +147,34 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
       subject: 'Reset your BlockCertify password',
       html: `<p>Use the following secure link to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`,
     });
+
+    await createAuditLog({
+      req,
+      actor: user.id,
+      actorEmail: user.email,
+      action: 'user.password_reset_requested',
+      entity: 'User',
+      entityId: user.id,
+    });
   }
 
   return sendSuccess(res, null, FORGOT_PASSWORD_MESSAGE);
 });
 
+const resetPasswordSchema = z
+  .object({
+    token: z.string().min(10, 'Reset token is required'),
+    email: z.string().email('Valid email is required'),
+    password: z.string().min(8, 'Password must be at least 8 characters long'),
+    confirmPassword: z.string().optional(),
+  })
+  .refine((data) => !data.confirmPassword || data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+
 export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-  const schema = z.object({ token: z.string().min(10), email: z.string().email(), password: z.string().min(8) });
-  const body = schema.parse(req.body);
+  const body = resetPasswordSchema.parse(req.body);
   const user = await User.findOne({
     email: body.email,
     resetPasswordToken: sha256(body.token),
@@ -149,5 +187,49 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   user.resetPasswordExpires = undefined;
   await user.save();
 
+  await createAuditLog({
+    req,
+    actor: user.id,
+    actorEmail: user.email,
+    action: 'user.password_reset',
+    entity: 'User',
+    entityId: user.id,
+  });
+
   return sendSuccess(res, null, 'Password reset successful');
+});
+
+const subscriptionUpdateSchema = z.object({
+  tier: z.enum(['free', 'Starter', 'Growth', 'Enterprise']),
+});
+
+export const updateSubscription = asyncHandler(async (req: Request, res: Response) => {
+  if (req.user?.role !== 'admin') {
+    throw new ApiError(403, 'Subscription plan upgrades require administrator approval or payment checkout.');
+  }
+
+  const { tier } = subscriptionUpdateSchema.parse(req.body);
+  const user = await User.findById(req.user?._id);
+  if (!user) throw new ApiError(404, 'User not found');
+
+  user.subscription = { tier, status: 'active', updatedAt: new Date() };
+  await user.save();
+
+  if (user.institution) {
+    await Institution.findByIdAndUpdate(user.institution, {
+      subscription: { tier, status: 'active', updatedAt: new Date() },
+    });
+  }
+
+  await createAuditLog({
+    req,
+    actor: user.id,
+    actorEmail: user.email,
+    action: 'subscription.updated',
+    entity: 'User',
+    entityId: user.id,
+    metadata: { tier },
+  });
+
+  return sendSuccess(res, { subscription: user.subscription }, 'Subscription updated successfully');
 });

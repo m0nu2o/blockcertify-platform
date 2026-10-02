@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import type { Certificate } from '@/types';
@@ -47,6 +48,9 @@ export interface TemplateConfig {
   sealType: 'ribbonGold' | 'blockchainCrest' | 'starburst' | 'cyberShield' | 'waxSeal';
   sealPosition: 'topRight' | 'bottomCenter' | 'topLeft' | 'bottomLeft' | 'bottomRight';
   showQr: boolean;
+  qrPosition?: 'besideSeal' | 'bottomRight' | 'bottomLeft' | 'topRight';
+  qrCodeDataUrl?: string;
+  verificationUrl?: string;
   institutionName: ElementStyle;
   subtitle: ElementStyle;
   studentName: ElementStyle;
@@ -358,9 +362,16 @@ export function getStoredTemplate(): TemplateConfig {
 export function populateTemplateWithCert(baseConfig: TemplateConfig, cert: Certificate): TemplateConfig {
   const formattedIssueDate = formatDate(cert.issueDate);
   const formattedExpiryDate = cert.expiryDate ? formatDate(cert.expiryDate) : null;
+  const baseUrl = typeof window !== 'undefined'
+    ? window.location.origin
+    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
+  const verificationUrl = `${baseUrl}/verify?id=${cert.certificateId}`;
 
   return {
     ...baseConfig,
+    showQr: baseConfig.showQr !== false,
+    verificationUrl,
+    qrCodeDataUrl: (cert as any).qrCodeDataUrl,
     institutionName: {
       ...baseConfig.institutionName,
       text: cert.institutionName || baseConfig.institutionName.text,
@@ -504,6 +515,57 @@ export const OfficialDiplomaCanvas = forwardRef<HTMLDivElement, {
 
       {/* Dynamic Security Seal */}
       {config.showSeal && renderSecuritySeal(config)}
+
+      {/* Scannable Verification QR Code */}
+      {config.showQr !== false && (
+        <div
+          data-qr-code="true"
+          className={`absolute z-20 flex flex-col items-center select-none ${
+            config.qrPosition === 'bottomLeft'
+              ? 'bottom-6 left-8 sm:bottom-7 sm:left-9'
+              : config.sealPosition === 'bottomRight'
+              ? 'bottom-6 right-28 sm:bottom-7 sm:right-32'
+              : config.sealPosition === 'bottomLeft'
+              ? 'bottom-6 left-28 sm:bottom-7 sm:left-32'
+              : 'bottom-6 right-8 sm:bottom-7 sm:right-9'
+          }`}
+        >
+          <div
+            className="p-1 rounded-md bg-white shadow-xl border flex flex-col items-center justify-center transition-transform hover:scale-105"
+            style={{ borderColor: config.borderColor }}
+          >
+            {config.qrCodeDataUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={config.qrCodeDataUrl}
+                alt="Verification QR Code"
+                className="object-contain"
+                style={{
+                  width: `${Math.max(38, Math.round(44 * scaleFactor))}px`,
+                  height: `${Math.max(38, Math.round(44 * scaleFactor))}px`,
+                }}
+              />
+            ) : (
+              <QRCodeSVG
+                value={
+                  config.verificationUrl ||
+                  (typeof window !== 'undefined'
+                    ? `${window.location.origin}/verify?id=${config.certId?.text?.replace(/^Credential ID:\s*/, '') || 'BC-DEMO'}`
+                    : `https://blockcertify.com/verify?id=${config.certId?.text?.replace(/^Credential ID:\s*/, '') || 'BC-DEMO'}`)
+                }
+                size={Math.max(38, Math.round(44 * scaleFactor))}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
+            )}
+            <div className="mt-0.5 text-[5.5px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-0.5">
+              <ShieldCheck className="size-2 text-emerald-600 inline" />
+              <span>Scan to Verify</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Diploma Text Elements */}
       {elementKeys.map((key) => {

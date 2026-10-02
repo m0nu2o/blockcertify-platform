@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { QRCodeSVG } from 'qrcode.react';
 
 export interface ElementStyle {
   left: number; // percentage
@@ -41,6 +42,9 @@ export interface TemplateConfig {
   sealType: 'ribbonGold' | 'blockchainCrest' | 'starburst' | 'cyberShield' | 'waxSeal';
   sealPosition: 'topRight' | 'bottomCenter' | 'topLeft' | 'bottomLeft' | 'bottomRight';
   showQr: boolean;
+  qrPosition?: 'besideSeal' | 'bottomRight' | 'bottomLeft' | 'topRight';
+  qrCodeDataUrl?: string;
+  verificationUrl?: string;
   institutionName: ElementStyle;
   subtitle: ElementStyle;
   studentName: ElementStyle;
@@ -743,6 +747,42 @@ export function TemplateDesigner() {
                 {/* Dynamic Security Seal */}
                 {config.showSeal && renderSecuritySeal(config)}
 
+                {/* Scannable Verification QR Code */}
+                {config.showQr !== false && (
+                  <div
+                    data-qr-code="true"
+                    className={`absolute z-20 flex flex-col items-center select-none ${
+                      config.qrPosition === 'bottomLeft'
+                        ? 'bottom-5 left-7'
+                        : config.sealPosition === 'bottomRight'
+                        ? 'bottom-5 right-24'
+                        : config.sealPosition === 'bottomLeft'
+                        ? 'bottom-5 left-24'
+                        : 'bottom-5 right-7'
+                    }`}
+                  >
+                    <div
+                      className="p-1 rounded-md bg-white shadow-xl border flex flex-col items-center justify-center transition-transform hover:scale-105"
+                      style={{ borderColor: config.borderColor }}
+                    >
+                      <QRCodeSVG
+                        value={
+                          config.verificationUrl ||
+                          `https://blockcertify.com/verify?id=${config.certId?.text?.replace(/^Credential ID:\s*/, '') || 'BC-2026-9A8B7C'}`
+                        }
+                        size={36}
+                        level="M"
+                        bgColor="#ffffff"
+                        fgColor="#000000"
+                      />
+                      <div className="mt-0.5 text-[5px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-0.5">
+                        <ShieldCheck className="size-2 text-emerald-600 inline" />
+                        <span>Scan to Verify</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Live Interactive Elements with Authentic Typography & Safe Bounds */}
                 {elementKeys.map((key) => {
                   const el = config[key];
@@ -1372,6 +1412,34 @@ export function TemplateDesigner() {
                             ))}
                           </div>
                         </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dynamic QR Verification Code */}
+                  <div className="p-2.5 rounded-xl border border-border/15 bg-card/60 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/50">QR Verification Code</span>
+                        <Badge className="border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[9px] py-0 px-1 font-mono">
+                          On-Chain
+                        </Badge>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setConfig((prev) => ({ ...prev, showQr: prev.showQr === false }))}
+                        className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border transition ${
+                          config.showQr !== false ? 'bg-success/15 border-success/30 text-success' : 'bg-muted/40 border-border/20 text-foreground/50'
+                        }`}
+                      >
+                        {config.showQr !== false ? '✓ Shown' : 'Hidden'}
+                      </button>
+                    </div>
+
+                    {config.showQr !== false && (
+                      <div className="text-[11px] text-foreground/60 bg-card/40 p-2 rounded-lg border border-border/10 flex items-center justify-between">
+                        <span>Auto-balanced beside seal for zero text collision</span>
+                        <span className="font-mono text-[10px] text-accent">Active</span>
                       </div>
                     )}
                   </div>

@@ -14,6 +14,7 @@ type AuthenticatedUser = NextAuthUser & {
   accessToken: string;
   institutionId?: string;
   institutionStatus?: InstitutionStatus;
+  subscriptionTier?: 'free' | 'Starter' | 'Growth' | 'Enterprise';
 };
 
 type LoginResponse = {
@@ -28,6 +29,7 @@ type LoginResponse = {
       role: AppRole;
       avatar?: string;
       institution?: { _id: string; status: InstitutionStatus } | null;
+      subscription?: { tier: 'free' | 'Starter' | 'Growth' | 'Enterprise' } | null;
     };
   };
 };
@@ -74,12 +76,13 @@ export const authOptions: NextAuthOptions = {
           accessToken: result.data.token,
           institutionId: result.data.user.institution?._id,
           institutionStatus: result.data.user.institution?.status,
+          subscriptionTier: result.data.user.subscription?.tier || 'free',
         } satisfies AuthenticatedUser;
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       const authenticatedUser = user as AuthenticatedUser | undefined;
 
       if (authenticatedUser) {
@@ -88,6 +91,13 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = authenticatedUser.accessToken;
         token.institutionId = authenticatedUser.institutionId;
         token.institutionStatus = authenticatedUser.institutionStatus;
+        token.subscriptionTier = authenticatedUser.subscriptionTier;
+      }
+
+      if (trigger === 'update' && session) {
+        if (session.subscriptionTier) {
+          token.subscriptionTier = session.subscriptionTier;
+        }
       }
 
       return token;
@@ -99,6 +109,7 @@ export const authOptions: NextAuthOptions = {
         session.user.accessToken = token.accessToken;
         session.user.institutionId = token.institutionId;
         session.user.institutionStatus = token.institutionStatus;
+        session.user.subscriptionTier = token.subscriptionTier;
         if (token.email) session.user.email = token.email as string;
       }
 

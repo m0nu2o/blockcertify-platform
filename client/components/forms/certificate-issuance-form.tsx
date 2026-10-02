@@ -13,13 +13,18 @@ import {
   CheckCircle2,
   Info,
   Calendar,
-  Clock
+  Clock,
+  Building2,
+  UserPlus,
+  Users,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getSubscriptionTier, SubscriptionTier } from '@/lib/subscription';
+import { apiFetch, API_URL } from '@/lib/api';
 
 const defaultState = {
   studentName: '',
@@ -37,6 +42,17 @@ const defaultState = {
   expiryDate: '',
 };
 
+interface StudentRecord {
+  _id: string;
+  name: string;
+  studentId: string;
+  email: string;
+  degree?: string;
+  course?: string;
+  department?: string;
+  graduationYear?: number;
+}
+
 export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => void }) {
   const { data: session } = useSession();
   const [values, setValues] = useState(defaultState);
@@ -44,6 +60,11 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
   const [loading, setLoading] = useState(false);
   const [issuedCount, setIssuedCount] = useState(0);
   const [tier, setTier] = useState<SubscriptionTier>('free');
+  const [studentMode, setStudentMode] = useState<'new' | 'existing'>('new');
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentsList, setStudentsList] = useState<StudentRecord[]>([]);
+  const [searchingStudents, setSearchingStudents] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const accessToken = session?.user?.accessToken;
@@ -51,18 +72,60 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
   const userRole = session?.user?.role;
   const isUnapprovedInstitution = session?.user?.role === 'institution' && session.user.institutionStatus !== 'approved';
 
+  const fetchStudents = useCallback(async (q: string) => {
+    if (!accessToken) return;
+    setSearchingStudents(true);
+    try {
+      const res = await apiFetch<{ data?: { items: StudentRecord[] } }>(`/students?q=${encodeURIComponent(q)}`, {
+        token: accessToken,
+      });
+      if (res?.data?.items) {
+        setStudentsList(res.data.items);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSearchingStudents(false);
+    }
+  }, [accessToken]);
+
   useEffect(() => {
     if (userId) {
       setTier(getSubscriptionTier(userId));
     }
   }, [userId]);
 
+  useEffect(() => {
+    if (session?.user) {
+      const instId = session.user.institutionId || '';
+      const instName = session.user.name || '';
+      setValues((current) => ({
+        ...current,
+        institutionId: current.institutionId || instId,
+        institutionName: current.institutionName || instName,
+      }));
+    }
+
+    if (accessToken) {
+      apiFetch<{ data?: { name?: string; institution?: { _id: string; name: string } } }>('/auth/me', {
+        token: accessToken,
+      })
+        .then((res) => {
+          if (res?.data?.institution) {
+            setValues((current) => ({
+              ...current,
+              institutionId: res.data!.institution!._id || current.institutionId,
+              institutionName: res.data!.institution!.name || current.institutionName,
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [session?.user, accessToken]);
+
   const loadCertificateCount = useCallback(() => {
     if (!accessToken) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/certificates?limit=1`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    })
-      .then(res => res.json())
+    apiFetch<{ data?: { total?: number } }>('/certificates?limit=1', { token: accessToken })
       .then(data => {
         if (data?.data?.total !== undefined) {
           setIssuedCount(data.data.total);
@@ -126,6 +189,34 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
     toast.info("Expiry cleared (Permanent lifetime validity)");
   };
 
+  const handleSelectStudent = (s: StudentRecord) => {
+    setSelectedStudent(s);
+    setValues((curr) => ({
+      ...curr,
+      studentName: s.name,
+      studentId: s.studentId,
+      email: s.email,
+      degree: s.degree || curr.degree,
+      course: s.course || curr.course,
+      department: s.department || curr.department,
+      graduationYear: s.graduationYear || curr.graduationYear,
+    }));
+    toast.success(`Selected student: ${s.name}`);
+  };
+
+  const handleClearStudent = () => {
+    setSelectedStudent(null);
+    setValues((curr) => ({
+      ...curr,
+      studentName: '',
+      studentId: '',
+      email: '',
+      degree: '',
+      course: '',
+      department: '',
+    }));
+  };
+
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (isLimitReached) {
@@ -136,11 +227,10 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
       toast.error('Please sign in to issue certificates.');
       return;
     }
-    if (!file) {
-      toast.error('Please attach the certificate PDF file.');
-      return;
+    const required: (keyof typeof defaultState)[] = ['studentName', 'studentId', 'email', 'degree', 'course', 'department'];
+    if (userRole !== 'institution') {
+      required.push('institutionId', 'institutionName');
     }
-    const required: (keyof typeof defaultState)[] = ['studentName', 'studentId', 'email', 'degree', 'course', 'department', 'institutionId', 'institutionName'];
     for (const field of required) {
       if (!String(values[field]).trim()) {
         toast.error(`Please fill in the "${field.replace(/([A-Z])/g, ' $1').toLowerCase()}" field.`);
@@ -152,8 +242,10 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
     try {
       const formData = new FormData();
       Object.entries(values).forEach(([key, value]) => formData.append(key, String(value)));
-      formData.append('certificatePdf', file);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/certificates`, {
+      if (file) {
+        formData.append('certificatePdf', file);
+      }
+      const response = await fetch(`${API_URL}/certificates`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` },
         body: formData,
@@ -162,6 +254,8 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
       if (!response.ok) throw new Error(result.message || 'Issuance failed');
       toast.success(`Certificate ${result.data.certificateId} anchored successfully!`);
       setValues(defaultState);
+      setSelectedStudent(null);
+      setStudentSearch('');
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       loadCertificateCount();
@@ -210,6 +304,109 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
       <form className="grid gap-3.5 sm:grid-cols-2" onSubmit={onSubmit}>
         <fieldset disabled={isUnapprovedInstitution || isLimitReached} className="contents">
           
+          {/* Dual Mode Student Selector */}
+          <div className="sm:col-span-2 space-y-3 pb-1">
+            <div className="flex items-center justify-between p-1 bg-card/80 border border-border/15 rounded-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setStudentMode('new');
+                  setSelectedStudent(null);
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+                  studentMode === 'new'
+                    ? 'bg-accent text-accent-foreground shadow-sm'
+                    : 'text-foreground/70 hover:text-foreground'
+                }`}
+              >
+                <UserPlus className="size-3.5" />
+                Register New Student & Issue
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStudentMode('existing');
+                  fetchStudents('');
+                }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition ${
+                  studentMode === 'existing'
+                    ? 'bg-accent text-accent-foreground shadow-sm'
+                    : 'text-foreground/70 hover:text-foreground'
+                }`}
+              >
+                <Users className="size-3.5" />
+                Select Existing Student
+              </button>
+            </div>
+
+            {studentMode === 'existing' && (
+              <div className="space-y-2.5 p-3 rounded-xl border border-accent/20 bg-accent/5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground/90 block">
+                    Search Registered Students in Your Institution
+                  </label>
+                  {selectedStudent && (
+                    <button
+                      type="button"
+                      onClick={handleClearStudent}
+                      className="text-[11px] text-foreground/50 hover:text-danger font-medium transition-colors"
+                    >
+                      Clear Selection
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Input
+                    placeholder="Search by student name, ID, or email..."
+                    value={studentSearch}
+                    onChange={(e) => {
+                      setStudentSearch(e.target.value);
+                      fetchStudents(e.target.value);
+                    }}
+                    className="h-9 text-xs rounded-xl bg-card/80 pl-8 border-border/20 focus:border-accent/80"
+                  />
+                  <Search className="size-3.5 text-foreground/40 absolute left-2.5 top-3" />
+                </div>
+
+                {selectedStudent ? (
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-card/90 border border-accent/30 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle2 className="size-4 text-accent shrink-0" />
+                      <div>
+                        <span className="font-bold text-foreground">{selectedStudent.name}</span>
+                        <span className="text-foreground/60 ml-2 font-mono">({selectedStudent.studentId})</span>
+                        <div className="text-[11px] text-foreground/50 mt-0.5">{selectedStudent.email} • {selectedStudent.degree}</div>
+                      </div>
+                    </div>
+                    <Badge className="border-accent/40 text-accent text-[10px]">
+                      Selected
+                    </Badge>
+                  </div>
+                ) : studentsList.length > 0 ? (
+                  <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-border/10 bg-card/90 p-1">
+                    {studentsList.map((s) => (
+                      <button
+                        key={s._id}
+                        type="button"
+                        onClick={() => handleSelectStudent(s)}
+                        className="w-full text-left p-2 rounded-md hover:bg-accent/15 transition flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <div className="font-semibold text-foreground">{s.name} <span className="font-mono text-[11px] text-foreground/60">({s.studentId})</span></div>
+                          <div className="text-[10px] text-foreground/50">{s.email} • {s.degree || 'Degree'}</div>
+                        </div>
+                        <span className="text-accent text-[11px] font-medium">Select</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : studentSearch && !searchingStudents ? (
+                  <p className="text-xs text-foreground/50 italic py-1">No matching students found in your institution.</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+
           {/* Row 1: Student Name & Student ID */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground/90 block">
@@ -318,21 +515,8 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
             />
           </div>
 
-          {/* Row 5: Institution ID & Authorized Signatory */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground/90 block">
-              Institution ID <span className="text-danger">*</span>
-            </label>
-            <Input 
-              required 
-              placeholder="e.g. INST-GBU-01" 
-              value={values.institutionId} 
-              onChange={(e) => onChange('institutionId', e.target.value)} 
-              className="h-9 text-xs rounded-xl bg-card/60 border-border/15 hover:border-border/30 focus:border-accent/80 focus:ring-1 focus:ring-accent/30 transition-colors"
-            />
-          </div>
-
-          <div className="space-y-1.5">
+          {/* Row 5: Authorized Signatory */}
+          <div className="space-y-1.5 sm:col-span-2">
             <label className="text-xs font-semibold text-foreground/90 block">
               Authorized Signatory <span className="text-[10px] font-normal text-foreground/50">(Optional)</span>
             </label>
@@ -344,19 +528,55 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
             />
           </div>
 
-          {/* Row 6: Institution Name (Full-width 2-column span) */}
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-xs font-semibold text-foreground/90 block">
-              Institution Name <span className="text-danger">*</span>
-            </label>
-            <Input 
-              required 
-              placeholder="e.g. Gautam Buddha University" 
-              value={values.institutionName} 
-              onChange={(e) => onChange('institutionName', e.target.value)} 
-              className="h-9 text-xs rounded-xl bg-card/60 border-border/15 hover:border-border/30 focus:border-accent/80 focus:ring-1 focus:ring-accent/30 transition-colors"
-            />
-          </div>
+          {/* Row 6: Issuing Institution Context */}
+          {userRole === 'institution' ? (
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-xs font-semibold text-foreground/90 block">
+                Issuing Institution <span className="text-success font-normal text-[11px]">(Verified Account)</span>
+              </label>
+              <div className="rounded-xl border border-accent/20 bg-foreground/[0.03] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <Building2 className="size-4 text-accent shrink-0" />
+                  <span className="font-bold text-foreground text-sm">
+                    {values.institutionName || session?.user?.name || 'Future University'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-foreground/60 font-mono text-[11px] bg-card/60 border border-border/10 px-2.5 py-1 rounded-lg">
+                  <span className="text-foreground/40">ID:</span>
+                  <span className="truncate max-w-[200px]" title={values.institutionId || session?.user?.institutionId}>
+                    {values.institutionId || session?.user?.institutionId || 'Auto-Assigned'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground/90 block">
+                  Institution ID <span className="text-danger">*</span>
+                </label>
+                <Input 
+                  required 
+                  placeholder="e.g. 6aa6a2a0368cf163d1d035bf" 
+                  value={values.institutionId} 
+                  onChange={(e) => onChange('institutionId', e.target.value)} 
+                  className="h-9 text-xs rounded-xl bg-card/60 border-border/15 hover:border-border/30 focus:border-accent/80 focus:ring-1 focus:ring-accent/30 transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground/90 block">
+                  Institution Name <span className="text-danger">*</span>
+                </label>
+                <Input 
+                  required 
+                  placeholder="e.g. Future University" 
+                  value={values.institutionName} 
+                  onChange={(e) => onChange('institutionName', e.target.value)} 
+                  className="h-9 text-xs rounded-xl bg-card/60 border-border/15 hover:border-border/30 focus:border-accent/80 focus:ring-1 focus:ring-accent/30 transition-colors"
+                />
+              </div>
+            </>
+          )}
 
           {/* Row 6: Dates Row - Issue Date & Expiry Date (Side by side) */}
           <div className="space-y-1.5">
@@ -413,7 +633,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
             <div className="h-6 flex items-center justify-between">
               <label className="text-xs font-semibold text-foreground/90 flex items-center gap-1.5">
                 <FileText className="size-3.5 text-accent" />
-                Certificate PDF Document <span className="text-danger">*</span>
+                Certificate PDF Document <span className="text-foreground/50 text-[10px] font-normal">(Optional — auto-generated with QR if empty)</span>
               </label>
               <span className="text-[10px] text-foreground/50 font-mono">PDF | Max 10MB</span>
             </div>
@@ -440,7 +660,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
               >
                 <div className="flex items-center gap-2.5 text-foreground/75">
                   <UploadCloud className="size-4 text-accent shrink-0" />
-                  <span>Choose or drag PDF certificate to attach</span>
+                  <span>Attach pre-signed PDF (or leave blank to auto-generate diploma with QR code)</span>
                 </div>
                 <Badge className="border-border/15 bg-card text-[10px] font-semibold text-foreground/70">
                   Browse PDF
@@ -478,7 +698,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
             </span>
             <Button 
               type="submit" 
-              disabled={loading || !file}
+              disabled={loading}
               className="rounded-xl h-9 px-5 text-xs font-bold shadow-glow hover:scale-105 active:scale-95 transition-all"
             >
               {loading ? <Sparkles className="size-3.5 animate-spin mr-1.5" /> : null}

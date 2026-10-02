@@ -6,7 +6,7 @@ import { useDropzone } from 'react-dropzone';
 import { UploadCloud, FileText, X, Copy, Check, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/ui/glass-card';
-import { buildUploadHeaders } from '@/lib/api';
+import { buildUploadHeaders, API_URL } from '@/lib/api';
 import { getSubscriptionTier, SubscriptionTier } from '@/lib/subscription';
 import { cn } from '@/lib/utils';
 
@@ -35,18 +35,23 @@ export function BulkCertificateUploadForm({
   const [institutionId, setInstitutionId] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BulkResult | null>(null);
-  const [tier, setTier] = useState<SubscriptionTier>('free');
+  const [tier, setTier] = useState<SubscriptionTier>(
+    (session?.user?.subscriptionTier as SubscriptionTier) || 'free'
+  );
   const [copied, setCopied] = useState(false);
 
   const userId = session?.user?.id;
+  const isAdmin = session?.user?.role === 'admin';
 
   useEffect(() => {
-    if (userId) {
+    if (session?.user?.subscriptionTier) {
+      setTier(session.user.subscriptionTier as SubscriptionTier);
+    } else if (userId) {
       setTier(getSubscriptionTier(userId));
     }
-  }, [userId]);
+  }, [session?.user?.subscriptionTier, userId]);
 
-  const isFree = tier === 'free';
+  const isFree = !isAdmin && tier === 'free';
   const needsInstitutionPicker = Boolean(institutions);
 
   const handleCopyHeader = () => {
@@ -100,7 +105,7 @@ export function BulkCertificateUploadForm({
       formData.append('file', file);
       if (needsInstitutionPicker) formData.append('institutionId', institutionId);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/certificates/bulk/upload`, {
+      const response = await fetch(`${API_URL}/certificates/bulk/upload`, {
         method: 'POST',
         headers: buildUploadHeaders(accessToken),
         body: formData,

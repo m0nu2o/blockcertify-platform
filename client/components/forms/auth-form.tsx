@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { CheckCircle2 } from 'lucide-react';
@@ -16,7 +16,7 @@ import { GlassCard } from '@/components/ui/glass-card';
 import { apiFetch } from '@/lib/api';
 
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) });
-const registerSchema = loginSchema.extend({ name: z.string().min(2), role: z.enum(['admin', 'institution', 'student']), institutionName: z.string().optional(), studentId: z.string().optional() });
+const registerSchema = loginSchema.extend({ name: z.string().min(2), role: z.enum(['institution', 'student']), institutionName: z.string().optional(), studentId: z.string().optional() });
 
 type LoginValues = z.infer<typeof loginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
@@ -132,7 +132,6 @@ export function RegisterForm() {
         >
           <option value="student" className="bg-card text-foreground">Student</option>
           <option value="institution" className="bg-card text-foreground">Institution</option>
-          <option value="admin" className="bg-card text-foreground">Admin</option>
         </select>
         {role === 'institution' && (
           <div className="grid gap-1.5">
@@ -219,3 +218,104 @@ export function ForgotPasswordForm() {
     </GlassCard>
   );
 }
+
+export function ResetPasswordForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token') || '';
+  const emailParam = searchParams.get('email') || '';
+
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) {
+      toast.error('Reset token is missing from the link.');
+      return;
+    }
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await apiFetch('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          token,
+          email: emailParam,
+          password,
+          confirmPassword,
+        }),
+      });
+      setSuccess(true);
+      toast.success('Password reset successfully!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <GlassCard className="mx-auto max-w-lg text-center">
+        <CheckCircle2 className="size-14 text-success mx-auto mb-4" />
+        <h1 className="text-2xl font-bold">Password Reset Complete</h1>
+        <p className="mt-2 text-sm text-foreground/60">
+          Your password has been successfully updated. You can now sign in with your new credentials.
+        </p>
+        <div className="mt-6">
+          <Button onClick={() => router.push('/login')}>Proceed to Login</Button>
+        </div>
+      </GlassCard>
+    );
+  }
+
+  return (
+    <GlassCard className="mx-auto max-w-lg">
+      <div className="mb-6">
+        <h1 className="text-3xl font-semibold">Set new password</h1>
+        <p className="mt-2 text-sm text-foreground/65">
+          Choose a secure password with at least 8 characters.
+        </p>
+      </div>
+      <form className="grid gap-4" onSubmit={(e) => void onSubmit(e)}>
+        <div className="grid gap-1.5">
+          <Input
+            type="password"
+            placeholder="New password"
+            aria-label="New password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Input
+            type="password"
+            placeholder="Confirm new password"
+            aria-label="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+          <p className="text-xs text-foreground/45">Must be at least 8 characters.</p>
+        </div>
+        <Button disabled={loading}>{loading ? 'Resetting password...' : 'Update Password'}</Button>
+        <div className="text-center">
+          <Link href="/login" className="text-xs font-semibold text-foreground/50 hover:text-accent transition">← Back to login</Link>
+        </div>
+      </form>
+    </GlassCard>
+  );
+}
+

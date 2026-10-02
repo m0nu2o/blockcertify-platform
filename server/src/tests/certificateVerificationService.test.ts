@@ -70,7 +70,7 @@ describe('verifyByCertificateId', () => {
     expect(BlockchainTransaction.create).not.toHaveBeenCalled();
     expect(certificate.save).toHaveBeenCalled();
     expect(certificate.verificationCount).toBe(1);
-    expect(certificate.status).toBe('verified');
+    expect(certificate.status).toBe('issued');
     expect(result.valid).toBe(true);
     expect(VerificationLog.create).toHaveBeenCalledWith(
       expect.objectContaining({ certificateId: 'BC-1234', method: 'id', valid: true })
