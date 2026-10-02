@@ -68,18 +68,26 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  if (body.role === 'student' && body.studentId) {
+  if (body.role === 'student') {
+    const studentId = body.studentId?.trim() || `STU-${Date.now().toString().slice(-6)}`;
+    let defaultInst = await Institution.findOne({ status: 'approved' });
+    if (!defaultInst) defaultInst = await Institution.findOne();
+
     const student = await Student.create({
       user: user._id,
-      studentId: body.studentId,
-      name: body.name,
-      email: body.email,
+      institution: defaultInst?._id,
+      studentId,
+      name: body.name.trim(),
+      email: body.email.trim().toLowerCase(),
       degree: 'Bachelor of Science',
       course: 'Computer Science',
       department: 'Engineering',
       graduationYear: new Date().getFullYear(),
     });
     user.student = student._id;
+    if (defaultInst) {
+      user.institution = defaultInst._id;
+    }
     await user.save();
   }
 

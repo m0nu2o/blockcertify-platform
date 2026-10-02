@@ -76,6 +76,16 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
   const fetchStudents = useCallback(async (q: string) => {
     setSearchingStudents(true);
     const query = q.trim().toLowerCase();
+
+    // Read any locally registered students
+    let localStudents: StudentRecord[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('blockcertify-registered-students');
+        if (stored) localStudents = JSON.parse(stored);
+      } catch {}
+    }
+
     try {
       const token = accessToken || 'demo-institution-token-testing';
       const res = await apiFetch<{ data?: { items: StudentRecord[] } }>(`/students?q=${encodeURIComponent(q)}`, {
@@ -83,7 +93,26 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
         timeoutMs: 2000,
       });
       if (res?.data?.items && res.data.items.length > 0) {
-        setStudentsList(res.data.items);
+        const map = new Map<string, StudentRecord>();
+        // Add locally registered students first
+        for (const s of localStudents) {
+          if (s.email) map.set(s.email.toLowerCase(), s);
+        }
+        for (const s of res.data.items) {
+          if (s.email) map.set(s.email.toLowerCase(), s);
+        }
+        const merged = Array.from(map.values());
+        const filtered = query
+          ? merged.filter(
+              (s) =>
+                s.name.toLowerCase().includes(query) ||
+                s.studentId.toLowerCase().includes(query) ||
+                s.email.toLowerCase().includes(query) ||
+                (s.degree && s.degree.toLowerCase().includes(query)) ||
+                (s.course && s.course.toLowerCase().includes(query))
+            )
+          : merged;
+        setStudentsList(filtered);
         return;
       }
     } catch {
@@ -92,17 +121,27 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
       setSearchingStudents(false);
     }
 
-    // Direct fallback from seed data
-    const all = (seedData.students || []).map((s) => ({
-      _id: s._id,
-      name: s.name,
-      studentId: s.studentId,
-      email: s.email,
-      degree: s.degree,
-      course: s.course,
-      department: s.department,
-      graduationYear: s.graduationYear,
-    }));
+    // Direct fallback: merge local registered students with seed data
+    const map = new Map<string, StudentRecord>();
+    for (const s of localStudents) {
+      if (s.email) map.set(s.email.toLowerCase(), s);
+    }
+    for (const s of seedData.students || []) {
+      const email = s.email?.toLowerCase();
+      if (email && !map.has(email)) {
+        map.set(email, {
+          _id: s._id,
+          name: s.name,
+          studentId: s.studentId,
+          email: s.email,
+          degree: s.degree,
+          course: s.course,
+          department: s.department,
+          graduationYear: s.graduationYear,
+        });
+      }
+    }
+    const all = Array.from(map.values());
     const filtered = query
       ? all.filter(
           (s) =>

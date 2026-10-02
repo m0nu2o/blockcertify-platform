@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import gsap from 'gsap';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { ArrowRight, BadgeCheck, Blocks, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +12,16 @@ import { GlassCard } from '@/components/ui/glass-card';
 import { useLanguage } from '@/contexts/language-provider';
 
 export function Hero() {
-  // containerRef removed — was declared but never used
+  const { data: session } = useSession();
   const cardRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
+
+  const startIssuingHref = !session
+    ? '/register'
+    : session.user.role === 'student'
+    ? '/dashboard/student'
+    : '/dashboard/institution';
 
   const containerVariants = {
     hidden: {},
@@ -111,7 +118,7 @@ export function Hero() {
             className="flex flex-wrap items-center gap-4 pt-4"
           >
             <Button asChild size="lg" className="rounded-full shadow-glow font-semibold px-8 gap-2 hover:gap-3 transition-all h-12 focus-visible:ring-2 focus-visible:ring-accent">
-              <Link href="/register">
+              <Link href={startIssuingHref}>
                 {t('hero.cta.start')} <ArrowRight className="size-4" />
               </Link>
             </Button>

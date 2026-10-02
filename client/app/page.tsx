@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import { Hero } from '@/components/hero';
 import { MarketingShell } from '@/components/marketing-shell';
 import { SectionTitle } from '@/components/section-title';
@@ -30,7 +31,15 @@ const revealVariants = {
 };
 
 export default function HomePage() {
+  const { data: session } = useSession();
   const { t } = useLanguage();
+
+  const trialHref = !session
+    ? '/register'
+    : session.user.role === 'student'
+    ? '/dashboard/student'
+    : '/dashboard/institution';
+
   return (
     <MarketingShell>
       {/* 1. Hero Section */}
@@ -185,7 +194,7 @@ export default function HomePage() {
               <h2 className="text-4xl font-extrabold tracking-tight text-foreground">Ready to modernize your credential infrastructure?</h2>
               <p className="mt-4 text-sm text-foreground/75 leading-relaxed max-w-2xl mx-auto">Launch a future-ready issuance and verification system with enterprise analytics, auditability, and beautiful student experiences.</p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Button asChild size="lg" className="rounded-xl py-6 px-8 shadow-glow"><Link href="/register">Start Free Trial</Link></Button>
+                <Button asChild size="lg" className="rounded-xl py-6 px-8 shadow-glow"><Link href={trialHref}>Start Free Trial</Link></Button>
                 <Button asChild size="lg" variant="secondary" className="rounded-xl py-6 px-8 hover:bg-foreground/[0.08]"><Link href="/documentation">View Documentation</Link></Button>
               </div>
             </div>

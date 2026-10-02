@@ -31,7 +31,7 @@ const markSubApproved = (id: string) => {
   }
 };
 
-function getDemoFallback<T>(path: string, method = 'GET'): T | null {
+function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | null {
   const p = path.split('?')[0];
   const approvedSet = getApprovedSubs();
 
@@ -157,16 +157,37 @@ function getDemoFallback<T>(path: string, method = 'GET'): T | null {
   if (p === '/students') {
     const searchParams = path.includes('?') ? new URLSearchParams(path.split('?')[1]) : null;
     const query = searchParams?.get('q')?.trim().toLowerCase() || '';
-    const allStudents = (seedData.students || []).map((s) => ({
-      _id: s._id,
-      name: s.name,
-      studentId: s.studentId,
-      email: s.email,
-      degree: s.degree,
-      course: s.course,
-      department: s.department,
-      graduationYear: s.graduationYear,
-    }));
+
+    let localStudents: any[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('blockcertify-registered-students');
+        if (stored) localStudents = JSON.parse(stored);
+      } catch {}
+    }
+
+    const combinedMap = new Map<string, any>();
+    // Locally registered students first so newly created students appear at top
+    for (const s of localStudents) {
+      if (s.email) combinedMap.set(s.email.toLowerCase(), s);
+    }
+    for (const s of seedData.students || []) {
+      const email = s.email?.toLowerCase();
+      if (email && !combinedMap.has(email)) {
+        combinedMap.set(email, {
+          _id: s._id,
+          name: s.name,
+          studentId: s.studentId,
+          email: s.email,
+          degree: s.degree,
+          course: s.course,
+          department: s.department,
+          graduationYear: s.graduationYear,
+        });
+      }
+    }
+
+    const allStudents = Array.from(combinedMap.values());
     const filtered = query
       ? allStudents.filter(
           (s) =>
@@ -298,6 +319,31 @@ function getDemoFallback<T>(path: string, method = 'GET'): T | null {
   }
 
   if (p === '/auth/register' && method === 'POST') {
+    if (body && typeof window !== 'undefined') {
+      try {
+        const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+        if (parsed.role === 'student') {
+          const stored = JSON.parse(localStorage.getItem('blockcertify-registered-students') || '[]');
+          const newStudent = {
+            _id: `reg-stu-${Date.now()}`,
+            name: parsed.name?.trim() || 'New Student',
+            studentId: parsed.studentId?.trim() || `STU-${Date.now().toString().slice(-5)}`,
+            email: parsed.email?.trim().toLowerCase() || 'student@example.com',
+            degree: 'Bachelor of Science',
+            course: 'Computer Science',
+            department: 'Engineering',
+            graduationYear: new Date().getFullYear(),
+          };
+          const existingIdx = stored.findIndex((s: any) => s.email === newStudent.email || s.studentId === newStudent.studentId);
+          if (existingIdx >= 0) {
+            stored[existingIdx] = { ...stored[existingIdx], ...newStudent };
+          } else {
+            stored.unshift(newStudent);
+          }
+          localStorage.setItem('blockcertify-registered-students', JSON.stringify(stored));
+        }
+      } catch {}
+    }
     return {
       success: true,
       message: 'Account created successfully',
@@ -333,7 +379,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit & { token?
     return data as T;
   } catch (err: unknown) {
     // If backend is unreachable, timed out, or returned 404, check for fallback
-    const fallback = getDemoFallback<T>(path, method);
+    const fallback = getDemoFallback<T>(path, method, options?.body);
     if (fallback !== null) {
       return fallback;
     }

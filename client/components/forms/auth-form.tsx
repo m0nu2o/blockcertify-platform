@@ -1,11 +1,10 @@
-
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -28,7 +27,14 @@ function FieldError({ message }: { message?: string }) {
 
 export function LoginForm() {
   const router = useRouter();
+  const { status } = useSession();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.replace('/dashboard');
+    }
+  }, [status, router]);
   const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
   const { errors } = form.formState;
 
@@ -81,7 +87,16 @@ export function LoginForm() {
 
 export function RegisterForm() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      const dest = session?.user?.role === 'student' ? '/dashboard/student' : '/dashboard/institution';
+      router.replace(dest);
+    }
+  }, [status, session?.user?.role, router]);
+
   const form = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { role: 'student' } });
   const role = form.watch('role');
   const { errors } = form.formState;
@@ -91,6 +106,34 @@ export function RegisterForm() {
       setLoading(true);
       try {
         await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(values) });
+
+        // Save newly registered student locally so they are immediately selectable
+        if (typeof window !== 'undefined' && values.role === 'student') {
+          try {
+            const stored = JSON.parse(localStorage.getItem('blockcertify-registered-students') || '[]');
+            const newStudent = {
+              _id: `reg-stu-${Date.now()}`,
+              name: values.name.trim(),
+              studentId: values.studentId?.trim() || `STU-${Date.now().toString().slice(-5)}`,
+              email: values.email.trim().toLowerCase(),
+              degree: 'Bachelor of Science',
+              course: 'Computer Science',
+              department: 'Engineering',
+              graduationYear: new Date().getFullYear(),
+            };
+            const existingIdx = stored.findIndex((s: any) => s.email === newStudent.email || s.studentId === newStudent.studentId);
+            if (existingIdx >= 0) {
+              stored[existingIdx] = { ...stored[existingIdx], ...newStudent };
+            } else {
+              stored.unshift(newStudent);
+            }
+            localStorage.setItem('blockcertify-registered-students', JSON.stringify(stored));
+            window.dispatchEvent(new Event('storage'));
+          } catch {
+            // ignore
+          }
+        }
+
         await signIn('credentials', { 
           email: values.email, 
           password: values.password, 
@@ -99,7 +142,7 @@ export function RegisterForm() {
           redirect: false 
         });
         toast.success('Account created successfully');
-        router.push('/dashboard');
+        router.push(values.role === 'student' ? '/dashboard/student' : '/dashboard/institution');
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Registration failed');
       } finally {
@@ -114,8 +157,14 @@ export function RegisterForm() {
   return (
     <GlassCard className="mx-auto max-w-lg">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Create your workspace</h1>
-        <p className="mt-2 text-sm text-foreground/65">Launch secure certificate operations in minutes.</p>
+        <h1 className="text-3xl font-semibold">
+          {role === 'institution' ? 'Register Your Institution' : 'Create Student Account'}
+        </h1>
+        <p className="mt-2 text-sm text-foreground/65">
+          {role === 'institution'
+            ? 'Launch secure certificate operations for your organization.'
+            : 'Access, view, and share your verifiable blockchain certificates.'}
+        </p>
       </div>
       <form className="grid gap-4" onSubmit={onSubmit} noValidate>
         <div className="grid gap-1.5">
