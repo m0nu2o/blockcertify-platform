@@ -91,8 +91,53 @@ function getDemoFallback<T>(path: string, method = 'GET'): T | null {
     return {
       success: true,
       data: {
-        monthlyIssuance: [{ month: 'Jan', count: 12 }, { month: 'Feb', count: 24 }, { month: 'Mar', count: 38 }, { month: 'Apr', count: 24 }],
-        departmentDistribution: [{ department: 'Engineering', count: 50 }, { department: 'Business', count: 30 }, { department: 'Science', count: 18 }],
+        issued: 98,
+        revoked: 1,
+        students: 820,
+        recentCertificates: [
+          {
+            _id: 'cert-1',
+            certificateId: 'BC-5A4A9D6E',
+            studentName: 'Ava Thompson',
+            studentId: 'STU-001',
+            degree: 'Bachelor of Science',
+            course: 'Computer Science',
+            department: 'Engineering',
+            institutionName: 'Future University',
+            issueDate: new Date().toISOString().slice(0, 10),
+            status: 'issued',
+            revoked: false,
+            txHash: '0x3a8f5b892d1c67e41b89',
+            fileUrl: '/sample-certificate.pdf',
+          },
+        ],
+      },
+    } as unknown as T;
+  }
+
+  if (p === '/analytics/student') {
+    return {
+      success: true,
+      data: {
+        totalCertificates: 1,
+        verifiedCertificates: 1,
+        certificates: [
+          {
+            _id: 'cert-1',
+            certificateId: 'BC-5A4A9D6E',
+            studentName: 'Ava Thompson',
+            studentId: 'STU-001',
+            degree: 'Bachelor of Science',
+            course: 'Computer Science',
+            department: 'Engineering',
+            institutionName: 'Future University',
+            issueDate: new Date().toISOString().slice(0, 10),
+            status: 'issued',
+            revoked: false,
+            txHash: '0x3a8f5b892d1c67e41b89',
+            fileUrl: '/sample-certificate.pdf',
+          },
+        ],
       },
     } as unknown as T;
   }
