@@ -47,7 +47,7 @@ export function ContactForm() {
 
     try {
       // 1. Send to backend API /contact
-      await apiFetch('contact', {
+      await apiFetch('api/contact', {
         method: 'POST',
         body: JSON.stringify(form),
       });
