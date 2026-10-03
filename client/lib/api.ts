@@ -656,7 +656,9 @@ export async function apiFetch<T>(path: string, options?: RequestInit & { token?
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`${API_URL}${path}`, {
+    const cleanPath = path.startsWith('/api/') ? path.slice(4) : path.startsWith('api/') ? path.slice(3) : path;
+    const finalPath = cleanPath.startsWith('/') ? cleanPath : `/${cleanPath}`;
+    const response = await fetch(`${API_URL}${finalPath}`, {
       ...options,
       headers,
       signal: options?.signal || controller.signal,

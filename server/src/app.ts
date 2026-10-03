@@ -88,7 +88,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/explorer', explorerRoutes);
 app.use('/api/students', studentRoutes);
 
-app.post('/api/contact', async (req, res) => {
+const handleContactInquiry = async (req: express.Request, res: express.Response) => {
   try {
     const { name, email, institution, message, phone } = req.body || {};
     if (!name || !email || !message) {
@@ -114,8 +114,9 @@ app.post('/api/contact', async (req, res) => {
 
     try {
       const { sendEmail } = await import('./services/emailService.js');
+      const recipient = process.env.SMTP_USER || 'admin@blockcertify.com';
       await sendEmail({
-        to: process.env.SMTP_USER || 'admin@blockcertify.com',
+        to: recipient,
         subject: `[BlockCertify] Inquiry from ${name} (${institution || 'Institution'})`,
         html: `
           <h2>New Product & Rollout Inquiry</h2>
@@ -127,8 +128,9 @@ app.post('/api/contact', async (req, res) => {
           <p style="background: #f4f4f5; padding: 12px; border-radius: 8px;">${message}</p>
         `,
       });
-    } catch {
-      // ignore email delivery errors
+      console.log(`[Contact] Inquiry notification emailed to: ${recipient}`);
+    } catch (emailErr) {
+      console.error('[Contact] Email delivery failed:', (emailErr as Error)?.message || emailErr);
     }
 
     return res.status(200).json({
@@ -138,7 +140,10 @@ app.post('/api/contact', async (req, res) => {
   } catch (err: unknown) {
     return res.status(500).json({ success: false, message: (err as Error)?.message || 'Failed to submit inquiry' });
   }
-});
+};
+
+app.post('/api/contact', handleContactInquiry);
+app.post('/contact', handleContactInquiry);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
