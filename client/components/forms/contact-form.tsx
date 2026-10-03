@@ -25,7 +25,7 @@ const initialForm: ContactFormData = {
   message: '',
 };
 
-// 🔑 Yaha apni Web3Forms Access Key daalein ya Vercel Environment Variable NEXT_PUBLIC_WEB3FORMS_KEY use karein
+// 🔑 Yaha apni Web3Forms Access Key daalein
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY || 'c5c1d558-8cd0-499f-96a4-cf10b3f6e5d1';
 
 export function ContactForm() {
@@ -46,10 +46,9 @@ export function ContactForm() {
     }
 
     setSubmitting(true);
-    const toastId = toast.loading('Sending your message...');
 
     try {
-      // 1. Direct Web3Forms submission from the user's browser (100% bypasses all server firewalls)
+      // 1. Direct Web3Forms submission from the user's browser
       const accessKey = WEB3FORMS_KEY.trim();
       if (accessKey && accessKey !== 'YOUR_ACCESS_KEY_HERE') {
         try {
@@ -88,7 +87,7 @@ export function ContactForm() {
         console.warn('[ContactForm] Backend notice logged:', apiErr);
       }
 
-      // 3. Save to local browser storage so inquiries are preserved
+      // 3. Save to local browser storage
       try {
         const stored = JSON.parse(localStorage.getItem('blockcertify-contact-inquiries') || '[]');
         stored.unshift({
@@ -101,12 +100,13 @@ export function ContactForm() {
         // ignore
       }
 
-      toast.success('Inquiry received! Our team will contact you shortly.', { id: toastId });
+      // Clean single success toast (no overlapping spinner popup!)
+      toast.success('Inquiry received! Our team will contact you shortly.');
       setSubmitted(true);
       setForm(initialForm);
     } catch (err: unknown) {
       console.error(err);
-      toast.success('Inquiry saved! Our team has received your request.', { id: toastId });
+      toast.success('Inquiry saved! Our team has received your request.');
       setSubmitted(true);
       setForm(initialForm);
     } finally {
@@ -238,19 +238,22 @@ export function ContactForm() {
           />
         </div>
 
+        {/* Clean button with properly aligned spinner */}
         <Button
           type="submit"
           disabled={submitting}
-          className="mt-2 h-11 rounded-xl bg-accent text-accent-foreground font-bold shadow-glow hover:brightness-110 flex items-center justify-center gap-2"
+          className="mt-2 h-11 rounded-xl bg-accent text-accent-foreground font-bold shadow-glow hover:brightness-110 flex items-center justify-center gap-2 transition-all duration-200"
         >
           {submitting ? (
-            <>
-              <LoaderCircle className="size-4 animate-spin" /> Sending Inquiry...
-            </>
+            <span className="flex items-center gap-2.5">
+              <LoaderCircle className="size-4 animate-spin shrink-0" />
+              <span>Sending Inquiry...</span>
+            </span>
           ) : (
-            <>
-              <Send className="size-4" /> Send Inquiry
-            </>
+            <span className="flex items-center gap-2">
+              <Send className="size-4 shrink-0" />
+              <span>Send Inquiry</span>
+            </span>
           )}
         </Button>
       </form>
