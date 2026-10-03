@@ -24,6 +24,8 @@ export interface Certificate {
   expiryDate?: string;
   status: 'issued' | 'verified' | 'revoked' | 'expired';
   transactionHash?: string;
+  fileHash?: string;
+  metadataHash?: string;
   ipfsUrl?: string;
   metadataUrl?: string;
   verificationCount: number;

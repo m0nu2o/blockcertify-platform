@@ -932,6 +932,17 @@ export const BlockchainAuditReceipt = forwardRef<HTMLDivElement, {
                 {cert.transactionHash || '0x9f8b2c4d1e3a5f7082649b1c7a8e2d4f5c6b7a8e1029384756abcdef12345678'}
               </div>
             </div>
+
+            {/* Document Hash (SHA-256 Digest) */}
+            <div className="pt-2 border-t border-slate-800/80">
+              <div className="flex items-center justify-between text-[10px] font-semibold text-amber-300 uppercase tracking-wider mb-1">
+                <span>Document Hash (SHA-256 Merkle File Digest)</span>
+                <span className="font-mono text-[9px] text-slate-500">SHA-256</span>
+              </div>
+              <div className="p-2.5 rounded-lg bg-black/90 border border-amber-500/30 text-[10.5px] font-mono text-amber-300 break-all leading-relaxed select-all shadow-inner">
+                {cert.fileHash || cert.metadataHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -966,30 +977,23 @@ export const BlockchainAuditReceipt = forwardRef<HTMLDivElement, {
                   <div className="text-slate-400">
                     <span className="text-slate-500 font-bold">SECURITY:</span> Keccak-256 Merkle Digest · Secp256k1 ECDSA
                   </div>
-                  <div className="text-blue-300 font-semibold truncate bg-black/60 px-2.5 py-1 rounded-md border border-slate-800">
+                  <div className="text-blue-300 font-semibold break-all select-all bg-black/60 px-2.5 py-1 rounded-md border border-slate-800">
                     <span className="text-slate-500 font-normal select-none">HASH: </span>
-                    {cert.certificateId}-ETH-{Date.now().toString(16)}
+                    {cert.certificateId}-ETH-{cert.transactionHash ? cert.transactionHash.slice(2, 10) : 'VERIFIED'}
                   </div>
                 </div>
               </div>
 
               {/* Right Side: QR Code Frame */}
               <div className="shrink-0 flex flex-col items-center justify-center sm:pl-4 sm:border-l sm:border-slate-800/80">
-                {cert.qrCodeDataUrl ? (
-                  <div className="p-1.5 bg-white rounded-xl shadow-lg border-2 border-[#d4af37]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img 
-                      src={cert.qrCodeDataUrl} 
-                      alt="Verification QR" 
-                      className="object-contain rounded-md block"
-                      style={{ width: '74px', height: '74px' }}
-                    />
-                  </div>
-                ) : (
-                  <div className="p-2 rounded-xl bg-blue-500/10 border-2 border-blue-400 flex flex-col items-center justify-center" style={{ width: '74px', height: '74px' }}>
-                    <ShieldCheck className="size-8 text-blue-400" />
-                  </div>
-                )}
+                <div className="p-1.5 bg-white rounded-xl shadow-lg border-2 border-[#d4af37]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img 
+                    src={cert.qrCodeDataUrl || `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/verify?id=${cert.certificateId}` : `https://blockcertify-blush.vercel.app/verify?id=${cert.certificateId}`)}`} 
+                    alt="Verification QR" 
+                    className="object-contain rounded-md block size-[80px]"
+                  />
+                </div>
                 <span className="text-[8px] font-mono text-[#fbbf24] mt-1.5 font-bold uppercase tracking-widest block text-center">
                   SCAN TO VERIFY
                 </span>

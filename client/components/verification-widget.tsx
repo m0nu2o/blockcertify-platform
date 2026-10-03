@@ -108,20 +108,41 @@ export function VerificationWidget() {
     setLoading(true);
     try {
       const activeMode = overrideMode || (mode === 'bulk' ? 'id' : mode);
-      const payload = overridePayload !== undefined ? overridePayload : value;
-      if (!payload || !payload.trim()) {
+      const rawPayload = (overridePayload !== undefined ? overridePayload : value) || '';
+      const payload = rawPayload.trim();
+      if (!payload) {
         toast.error('Please enter a value to verify.');
         setLoading(false);
         return;
       }
+
+      // If payload is from QR scan or contains a Certificate ID (BC-XXXXXXXX), extract it cleanly
+      let finalPayload = payload;
+      let finalMode: Exclude<VerifyMode, 'bulk'> = activeMode;
+      const bcMatch = payload.match(/BC-[A-Z0-9]{8}/i) || payload.match(/[?&]id=([A-Z0-9-]+)/i);
+      if (bcMatch) {
+        finalPayload = (bcMatch[1] || bcMatch[0]).toUpperCase();
+        if (activeMode === 'qr') {
+          finalMode = 'id';
+        }
+      }
+
       const routeMap = {
         id: '/verification/id',
         hash: '/verification/hash',
         transaction: '/verification/transaction',
         qr: '/verification/qr',
       } satisfies Record<Exclude<VerifyMode, 'bulk'>, string>;
-      const body = activeMode === 'id' ? { certificateId: payload.trim() } : activeMode === 'hash' ? { hash: payload.trim() } : activeMode === 'transaction' ? { transactionHash: payload.trim() } : { payload: payload.trim() };
-      const response = await apiFetch<{ data?: VerificationResult; message?: string }>(routeMap[activeMode], {
+
+      const body = finalMode === 'id' 
+        ? { certificateId: finalPayload } 
+        : finalMode === 'hash' 
+          ? { hash: finalPayload } 
+          : finalMode === 'transaction' 
+            ? { transactionHash: finalPayload } 
+            : { payload: finalPayload, certificateId: finalPayload };
+
+      const response = await apiFetch<{ data?: VerificationResult; message?: string }>(routeMap[finalMode], {
         method: 'POST',
         body: JSON.stringify(body),
       });

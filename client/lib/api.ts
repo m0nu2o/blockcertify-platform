@@ -452,11 +452,15 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
       }
     }
 
+    // Extract clean ID if searchKey contains a URL or BC-ID pattern
+    const idExtract = searchKey.match(/BC-[A-Z0-9]{8}/i) || searchKey.match(/[?&]ID=([A-Z0-9-]+)/i);
+    const cleanId = idExtract ? (idExtract[1] || idExtract[0]).toUpperCase() : searchKey;
+
     // Find a match based on verification type
     let found: any = null;
     if (searchKey) {
       if (verifyType === 'id') {
-        found = certMap.get(searchKey);
+        found = certMap.get(cleanId) || certMap.get(searchKey);
       } else if (verifyType === 'hash') {
         found = allCerts.find(
           (c) =>
@@ -468,11 +472,13 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
           (c) => c.transactionHash?.toUpperCase() === searchKey
         );
       } else {
-        // QR / generic — try all fields
+        // QR / generic — try cleanId, then raw searchKey, then all fields
         found =
+          certMap.get(cleanId) ||
           certMap.get(searchKey) ||
           allCerts.find(
             (c) =>
+              c.certificateId?.toUpperCase() === cleanId ||
               c.fileHash?.toUpperCase() === searchKey ||
               c.transactionHash?.toUpperCase() === searchKey
           );

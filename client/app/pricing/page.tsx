@@ -20,7 +20,7 @@ import {
 const tiers = [
   { 
     name: 'Starter' as SubscriptionTier, 
-    price: '$49', 
+    price: '₹3,999', 
     description: 'For small academies and test deployments.', 
     features: ['1 institution limit', 'Unlimited certificates (Active)', 'Basic verification portal', 'Email notifications'],
     icon: Star,
@@ -29,7 +29,7 @@ const tiers = [
   },
   { 
     name: 'Growth' as SubscriptionTier, 
-    price: '$199', 
+    price: '₹14,999', 
     description: 'For multi-department institutions and professional programs.', 
     features: ['5 institutions limit', 'Bulk CSV upload & issuance (Growth+)', 'Advanced analytics & CSV/PDF export', 'Priority database indexing'],
     icon: Sparkles,

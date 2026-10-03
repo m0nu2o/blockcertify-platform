@@ -151,23 +151,126 @@ export default function InstitutionDashboardPage() {
   };
 
   const handleExport = async (type: 'csv' | 'pdf') => {
-    if (!session?.user.accessToken) return;
-    const toastId = toast.loading(`Generating ${type.toUpperCase()}...`);
+    const toastId = toast.loading(`Preparing ${type.toUpperCase()} export...`);
+    const items = data?.certificates?.items || [];
+
+    // Try backend export first if accessToken is present
+    if (session?.user.accessToken) {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/certificates/exports/${type}`, {
+          headers: { Authorization: `Bearer ${session.user.accessToken}` },
+        });
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `certificates_${new Date().toISOString().slice(0, 10)}.${type}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          toast.success(`${type.toUpperCase()} exported successfully!`, { id: toastId });
+          return;
+        }
+      } catch {
+        // Fall back to client-side generation below
+      }
+    }
+
+    // Client-side fallback generation
+    if (items.length === 0) {
+      toast.error('No certificates available to export.', { id: toastId });
+      return;
+    }
+
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/certificates/exports/${type}`, {
-        headers: { Authorization: `Bearer ${session.user.accessToken}` },
-      });
-      if (!response.ok) throw new Error('Export failed');
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `certificates.${type}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success(`${type.toUpperCase()} exported successfully!`, { id: toastId });
+      if (type === 'csv') {
+        const headers = ['Certificate ID', 'Student Name', 'Degree', 'Course', 'Department', 'Issue Date', 'Status', 'File Hash', 'Transaction Hash'];
+        const csvRows = [
+          headers.join(','),
+          ...items.map((item) => [
+            `"${item.certificateId || ''}"`,
+            `"${(item.studentName || '').replace(/"/g, '""')}"`,
+            `"${(item.degree || '').replace(/"/g, '""')}"`,
+            `"${(item.course || '').replace(/"/g, '""')}"`,
+            `"${(item.department || '').replace(/"/g, '""')}"`,
+            `"${item.issueDate || ''}"`,
+            `"${item.status || ''}"`,
+            `"${item.fileHash || ''}"`,
+            `"${item.transactionHash || ''}"`,
+          ].join(',')),
+        ];
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `certificates_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('CSV exported successfully!', { id: toastId });
+      } else {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>BlockCertify — Certificates Registry</title>
+                <style>
+                  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #0f172a; }
+                  h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+                  .sub { color: #64748b; font-size: 12px; margin-bottom: 20px; }
+                  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                  th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+                  th { background: #f8fafc; font-weight: 700; color: #334155; }
+                  tr:nth-child(even) { background: #f8fafc; }
+                  .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+                  .valid, .issued { background: #dcfce7; color: #15803d; }
+                  .revoked { background: #fee2e2; color: #b91c1c; }
+                  .mono { font-family: monospace; font-size: 10px; color: #475569; }
+                </style>
+              </head>
+              <body>
+                <h1>BlockCertify — Official Certificates Registry Report</h1>
+                <div class="sub">Generated: ${new Date().toLocaleString()} · Total: ${items.length} records · Ethereum Verified</div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Certificate ID</th>
+                      <th>Student Name</th>
+                      <th>Degree / Major</th>
+                      <th>Issue Date</th>
+                      <th>Status</th>
+                      <th>Transaction Hash</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${items.map((i) => `
+                      <tr>
+                        <td><strong>${i.certificateId}</strong></td>
+                        <td>${i.studentName}</td>
+                        <td>${i.degree || ''} ${i.course ? `(${i.course})` : ''}</td>
+                        <td>${i.issueDate}</td>
+                        <td><span class="badge ${i.status}">${i.status}</span></td>
+                        <td class="mono">${(i.transactionHash || '').slice(0, 18)}...</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => {
+            printWindow.print();
+          }, 600);
+          toast.success('PDF report generated!', { id: toastId });
+        }
+      }
     } catch (err) {
       toast.error('Failed to export certificates', { id: toastId });
     }

@@ -130,9 +130,20 @@ export const verifyByQrController = asyncHandler(async (req: Request, res: Respo
 
   try {
     const url = new URL(body.payload);
-    certificateId = url.searchParams.get('id') || body.payload;
+    certificateId = url.searchParams.get('id') || url.pathname.split('/').filter(Boolean).pop() || body.payload;
   } catch {
-    certificateId = body.payload;
+    const match = body.payload.match(/BC-[A-Z0-9]{8}/i);
+    if (match) {
+      certificateId = match[0];
+    } else {
+      certificateId = body.payload;
+    }
+  }
+
+  // Also clean if path segments contained extra characters
+  const cleanMatch = certificateId.match(/BC-[A-Z0-9]{8}/i);
+  if (cleanMatch) {
+    certificateId = cleanMatch[0];
   }
 
   if (certificateId.trim().length < 4) {

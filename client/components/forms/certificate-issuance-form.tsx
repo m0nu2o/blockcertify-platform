@@ -833,9 +833,10 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
                   <UploadCloud className="size-4 text-accent shrink-0" />
                   <span>Attach pre-signed PDF (or leave blank to auto-generate diploma with QR code)</span>
                 </div>
-                <Badge className="border-border/15 bg-card text-[10px] font-semibold text-foreground/70">
-                  Browse PDF
-                </Badge>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-accent/10 text-accent border border-accent/25 hover:bg-accent/20 transition-all shadow-sm shrink-0">
+                  <UploadCloud className="size-3.5" />
+                  Browse
+                </span>
               </div>
             ) : (
               <div className="h-11 rounded-xl border border-success/30 bg-success/[0.06] px-3.5 flex items-center justify-between gap-2 text-xs transition-colors">

@@ -113,7 +113,7 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
         className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 pointer-events-none"
       >
         <div
-          className="pointer-events-auto w-full max-w-3xl max-h-[92vh] flex flex-col rounded-[2rem] border border-border/20 bg-card/95 shadow-2xl backdrop-blur-2xl overflow-hidden"
+          className="pointer-events-auto w-full max-w-4xl max-h-[92vh] flex flex-col rounded-[2rem] border border-border/20 bg-card/95 shadow-2xl backdrop-blur-2xl overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -173,7 +173,7 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
           </div>
 
           {/* Modal Scrollable Body */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 max-h-[calc(92vh-140px)]">
             {/* TAB 1: OFFICIAL DESIGNED DIPLOMA CANVAS */}
             <div className={activeTab === 'diploma' ? 'space-y-3' : 'hidden'}>
               <div className="flex items-center justify-between text-xs text-foreground/60">
@@ -270,51 +270,47 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
           </div>
 
           {/* Action footer */}
-          <div className="sticky bottom-0 border-t border-border/10 bg-card/90 backdrop-blur-xl px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row gap-2.5 shrink-0">
-            {activeTab === 'diploma' ? (
-              <Button
-                className="flex-1 gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:brightness-110"
-                onClick={() => void handleDownloadPdf()}
-                disabled={downloading}
-              >
-                <Download className="size-4" />
-                {downloading ? 'Exporting Master Diploma...' : 'Download Official Diploma PDF'}
-              </Button>
-            ) : (
-              <Button
-                className="flex-1 gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:brightness-110"
-                onClick={() => downloadBlockchainAuditPdf(auditRef.current, certificate)}
-              >
-                <FileText className="size-4" />
-                Download Blockchain Audit Receipt (PDF)
-              </Button>
-            )}
-            {certificate.status !== 'revoked' && (
-              <a href={linkedInUrl} target="_blank" rel="noopener noreferrer" className="sm:w-auto">
-                <Button variant="secondary" className="w-full sm:w-auto gap-2 border-accent/25 hover:bg-accent/10 hover:text-accent">
-                  <Share2 className="size-4" /> Add to LinkedIn
+          <div className="sticky bottom-0 border-t border-border/10 bg-card/95 backdrop-blur-xl px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+            <div className="flex-1 min-w-[200px]">
+              {activeTab === 'diploma' ? (
+                <Button
+                  className="w-full gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:brightness-110"
+                  onClick={() => void handleDownloadPdf()}
+                  disabled={downloading}
+                >
+                  <Download className="size-4 shrink-0" />
+                  {downloading ? 'Exporting Master Diploma...' : 'Download Official Diploma PDF'}
+                </Button>
+              ) : (
+                <Button
+                  className="w-full gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:brightness-110"
+                  onClick={() => downloadBlockchainAuditPdf(auditRef.current, certificate)}
+                >
+                  <FileText className="size-4 shrink-0" />
+                  Download Blockchain Audit Receipt (PDF)
+                </Button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {certificate.status !== 'revoked' && (
+                <a href={linkedInUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="secondary" size="sm" className="gap-1.5 border-accent/25 hover:bg-accent/10 hover:text-accent font-medium">
+                    <Share2 className="size-3.5 shrink-0" /> Add to LinkedIn
+                  </Button>
+                </a>
+              )}
+              <Link href={`/verify?id=${certificate.certificateId}`} target="_blank">
+                <Button variant="outline" size="sm" className="gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium">
+                  <BadgeCheck className="size-3.5 text-emerald-400 shrink-0" /> Verify Credential
+                </Button>
+              </Link>
+              <a href={`/certificate/${certificate.certificateId}`} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm" className="gap-1.5 border-border/20 font-medium">
+                  <ShieldCheck className="size-3.5 text-accent shrink-0" /> Public Page
                 </Button>
               </a>
-            )}
-            <Link
-              href={`/verify?id=${certificate.certificateId}`}
-              target="_blank"
-              className="sm:w-auto"
-            >
-              <Button variant="outline" className="w-full sm:w-auto gap-2 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10">
-                <BadgeCheck className="size-4 text-emerald-400" /> Verify Credential
-              </Button>
-            </Link>
-            <a
-              href={`/certificate/${certificate.certificateId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="sm:w-auto"
-            >
-              <Button variant="outline" className="w-full sm:w-auto gap-2 border-border/20">
-                <ShieldCheck className="size-4 text-accent" /> Public Page
-              </Button>
-            </a>
+            </div>
           </div>
         </div>
       </motion.div>
