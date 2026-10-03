@@ -78,6 +78,21 @@ app.get('/api/health/blockchain', async (_req, res) => {
     res.status(503).json({ success: false, available: false, error: (err as Error)?.message || 'Unknown error' });
   }
 });
+app.get('/api/health/email', async (req, res) => {
+  try {
+    const { verifyEmailConfig } = await import('./services/emailService.js');
+    const sendTest = req.query.sendTest === 'true';
+    const testRecipient = typeof req.query.to === 'string' ? req.query.to : undefined;
+    const report = await verifyEmailConfig({ sendTest, testRecipient });
+    const status = report.connected ? 200 : 503;
+    res.status(status).json(report);
+  } catch (err: unknown) {
+    res.status(503).json({
+      connected: false,
+      error: (err as Error)?.message || String(err),
+    });
+  }
+});
 app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/certificates', certificateRoutes);
@@ -113,22 +128,27 @@ const handleContactInquiry = async (req: express.Request, res: express.Response)
     }
 
     try {
-      const { sendEmail } = await import('./services/emailService.js');
-      const recipient = process.env.SMTP_USER || 'admin@blockcertify.com';
+      const { sendEmail, getCleanSmtpUser } = await import('./services/emailService.js');
+      const adminEmail = getCleanSmtpUser() || process.env.ADMIN_EMAIL || 'admin@blockcertify.com';
       await sendEmail({
-        to: recipient,
+        to: adminEmail,
+        replyTo: email,
         subject: `[BlockCertify] Inquiry from ${name} (${institution || 'Institution'})`,
         html: `
-          <h2>New Product & Rollout Inquiry</h2>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Institution / Company:</strong> ${institution || 'N/A'}</p>
-          ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ''}
-          <p><strong>Message:</strong></p>
-          <p style="background: #f4f4f5; padding: 12px; border-radius: 8px;">${message}</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e4e4e7; border-radius: 8px;">
+            <h2 style="color: #0f172a; margin-top: 0;">New Product & Rollout Inquiry</h2>
+            <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 16px 0;" />
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+            <p><strong>Institution / Company:</strong> ${institution || 'N/A'}</p>
+            ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ''}
+            <p><strong>Message:</strong></p>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 6px; border-left: 4px solid #3b82f6; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${message}</div>
+            <p style="font-size: 12px; color: #64748b; margin-top: 24px;">Sent via BlockCertify Contact Portal</p>
+          </div>
         `,
       });
-      console.log(`[Contact] Inquiry notification emailed to: ${recipient}`);
+      console.log(`[Contact] Inquiry notification emailed to admin: ${adminEmail}`);
     } catch (emailErr) {
       console.error('[Contact] Email delivery failed:', (emailErr as Error)?.message || emailErr);
     }
