@@ -1,6 +1,14 @@
+import dns from 'node:dns';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env } from '../config/env.js';
+
+// Force Node.js globally to use IPv4 first
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // ignore
+}
 
 export const getCleanSmtpUser = (): string => {
   const raw = env.SMTP_USER || process.env.SMTP_USER || '';
@@ -9,7 +17,6 @@ export const getCleanSmtpUser = (): string => {
 
 export const getCleanSmtpPass = (): string => {
   const raw = env.SMTP_PASS || process.env.SMTP_PASS || '';
-  // Strip all spaces, tabs, carriage returns, and wrapping quotes commonly copied from Google App Passwords
   return raw.replace(/\s+/g, '').replace(/^['"]|['"]$/g, '');
 };
 
@@ -35,7 +42,10 @@ export const createTransporter = (options?: { port?: number; secure?: boolean })
       user: cleanUser,
       pass: cleanPass,
     } : undefined,
-    // CRITICAL: Force IPv4 family to prevent cloud container (Render/Docker) IPv6 timeouts
+    // CRITICAL: Custom DNS lookup to guarantee ONLY IPv4 on Render cloud containers
+    lookup: (hostname: string, _opts: any, callback: any) => {
+      dns.lookup(hostname, { family: 4 }, callback);
+    },
     family: 4,
     connectionTimeout: 8000,
     greetingTimeout: 8000,
