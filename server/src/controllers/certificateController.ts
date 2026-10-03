@@ -81,8 +81,9 @@ export const createCertificate = asyncHandler(async (req: Request, res: Response
   let pdfFileName = req.file?.originalname || `${body.studentId || 'certificate'}.pdf`;
 
   if (!pdfBuffer) {
-    const certificateId = `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
-    const verificationUrl = `${process.env.PUBLIC_VERIFY_URL || process.env.CLIENT_URL || 'http://localhost:3000'}/verify?id=${certificateId}`;
+    const certificateId = (body as any).certificateId || `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
+    const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+    const verificationUrl = `${clientBase}/certificate/${certificateId}`;
     pdfBuffer = await createCertificatePdfBuffer({
       certificateId,
       studentName: body.studentName,

@@ -412,7 +412,8 @@ export function DashboardShell({ title, children }: { title: string; children: R
                     aria-label={`Disconnect wallet ${account}`}
                   >
                     <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                    {account.slice(0, 6)}...{account.slice(-4)}
+                    {/* {account.slice(0, 6)}...{account.slice(-4)} */}
+                    Connected
                   </Button>
                 ) : (
                   <Button

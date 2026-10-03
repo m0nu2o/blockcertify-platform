@@ -224,7 +224,8 @@ export function Navbar() {
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
                     </span>
                     <span className="text-xs font-medium text-accent">
-                      {account.slice(0, 6)}...{account.slice(-4)}
+                      {/* {account.slice(0, 6)}...{account.slice(-4)} */}
+                      Connected
                     </span>
                   </div>
                   <button 

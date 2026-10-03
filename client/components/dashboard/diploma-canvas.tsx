@@ -364,14 +364,14 @@ export function populateTemplateWithCert(baseConfig: TemplateConfig, cert: Certi
   const formattedExpiryDate = cert.expiryDate ? formatDate(cert.expiryDate) : null;
   const baseUrl = typeof window !== 'undefined'
     ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
-  const verificationUrl = `${baseUrl}/verify?id=${cert.certificateId}`;
+    : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify-blush.vercel.app');
+  const verificationUrl = `${baseUrl}/certificate/${cert.certificateId}`;
 
   return {
     ...baseConfig,
     showQr: baseConfig.showQr !== false,
     verificationUrl,
-    qrCodeDataUrl: (cert as any).qrCodeDataUrl,
+    qrCodeDataUrl: undefined,
     institutionName: {
       ...baseConfig.institutionName,
       text: cert.institutionName || baseConfig.institutionName.text,
@@ -534,31 +534,22 @@ export const OfficialDiplomaCanvas = forwardRef<HTMLDivElement, {
             className="p-1 rounded-md bg-white shadow-xl border flex flex-col items-center justify-center transition-transform hover:scale-105"
             style={{ borderColor: config.borderColor }}
           >
-            {config.qrCodeDataUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={config.qrCodeDataUrl}
-                alt="Verification QR Code"
-                className="object-contain"
-                style={{
-                  width: `${Math.max(38, Math.round(44 * scaleFactor))}px`,
-                  height: `${Math.max(38, Math.round(44 * scaleFactor))}px`,
-                }}
-              />
-            ) : (
-              <QRCodeSVG
-                value={
-                  config.verificationUrl ||
-                  (typeof window !== 'undefined'
-                    ? `${window.location.origin}/verify?id=${config.certId?.text?.replace(/^Credential ID:\s*/, '') || 'BC-DEMO'}`
-                    : `https://blockcertify.com/verify?id=${config.certId?.text?.replace(/^Credential ID:\s*/, '') || 'BC-DEMO'}`)
-                }
-                size={Math.max(38, Math.round(44 * scaleFactor))}
-                level="M"
-                bgColor="#ffffff"
-                fgColor="#000000"
-              />
-            )}
+            {(() => {
+              const cleanCertId = (config.certId?.text?.replace(/^Credential ID:\s*/i, '') || 'BC-DEMO').trim();
+              const baseUrl = typeof window !== 'undefined'
+                ? window.location.origin
+                : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify-blush.vercel.app');
+              const publicCertUrl = config.verificationUrl || `${baseUrl}/certificate/${cleanCertId}`;
+              return (
+                <QRCodeSVG
+                  value={publicCertUrl}
+                  size={Math.max(40, Math.round(44 * scaleFactor))}
+                  level="M"
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+              );
+            })()}
             <div className="mt-0.5 text-[5.5px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-0.5">
               <ShieldCheck className="size-2 text-emerald-600 inline" />
               <span>Scan to Verify</span>
@@ -987,12 +978,21 @@ export const BlockchainAuditReceipt = forwardRef<HTMLDivElement, {
               {/* Right Side: QR Code Frame */}
               <div className="shrink-0 flex flex-col items-center justify-center sm:pl-4 sm:border-l sm:border-slate-800/80">
                 <div className="p-1.5 bg-white rounded-xl shadow-lg border-2 border-[#d4af37]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={cert.qrCodeDataUrl || `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/verify?id=${cert.certificateId}` : `https://blockcertify-blush.vercel.app/verify?id=${cert.certificateId}`)}`} 
-                    alt="Verification QR" 
-                    className="object-contain rounded-md block size-[80px]"
-                  />
+                  {(() => {
+                    const baseUrl = typeof window !== 'undefined'
+                      ? window.location.origin
+                      : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify-blush.vercel.app');
+                    const receiptVerifyUrl = `${baseUrl}/certificate/${cert.certificateId}`;
+                    return (
+                      <QRCodeSVG
+                        value={receiptVerifyUrl}
+                        size={80}
+                        level="M"
+                        bgColor="#ffffff"
+                        fgColor="#000000"
+                      />
+                    );
+                  })()}
                 </div>
                 <span className="text-[8px] font-mono text-[#fbbf24] mt-1.5 font-bold uppercase tracking-widest block text-center">
                   SCAN TO VERIFY

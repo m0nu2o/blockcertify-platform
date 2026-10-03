@@ -152,9 +152,8 @@ export const createCertificatePdfBuffer = async (params: {
   verificationUrl?: string;
 }): Promise<Buffer> => {
   const certId = params.certificateId || `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
-  const verifyUrl =
-    params.verificationUrl ||
-    `${process.env.PUBLIC_VERIFY_URL || process.env.CLIENT_URL || 'http://localhost:3000'}/verify?id=${certId}`;
+  const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+  const verifyUrl = params.verificationUrl || `${clientBase}/certificate/${certId}`;
 
   const qrBuffer = await QRCode.toBuffer(verifyUrl, {
     width: 200,
@@ -519,7 +518,8 @@ export const issueCertificate = async ({
   const certificateId = payload.certificateId || `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
   const fileHash = sha256(pdfBuffer);
   const metadataHash = sha256(JSON.stringify(payload));
-  const verificationUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/verify?id=${certificateId}`;
+  const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+  const verificationUrl = `${clientBase}/certificate/${certificateId}`;
   const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, { width: 280, margin: 1 });
 
   const filePin = await pinFileToIpfs(pdfBuffer, pdfFileName);
@@ -772,10 +772,12 @@ export const approveCertificate = async ({
       });
     }
 
+    const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+    const publicCertUrl = `${clientBase}/certificate/${certificate.certificateId}`;
     await sendEmail({
       to: certificate.email || '',
       subject: `Certificate issued: ${certificate.certificateId}`,
-      html: `<p>Hello ${certificate.studentName},</p><p>Your certificate has been issued by ${certificate.institutionName}.</p><p>Certificate ID: <strong>${certificate.certificateId}</strong></p><p>Verification link: <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}/verify?id=${certificate.certificateId}">${process.env.CLIENT_URL || 'http://localhost:3000'}/verify?id=${certificate.certificateId}</a></p>`,
+      html: `<p>Hello ${certificate.studentName},</p><p>Your certificate has been issued by ${certificate.institutionName}.</p><p>Certificate ID: <strong>${certificate.certificateId}</strong></p><p>Public Verification link: <a href="${publicCertUrl}">${publicCertUrl}</a></p>`,
     });
 
     return certificate;
@@ -916,7 +918,8 @@ export const bulkIssueCertificates = async ({
         }
 
         const certificateId = `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
-        const verificationUrl = `${process.env.PUBLIC_VERIFY_URL || process.env.CLIENT_URL || 'http://localhost:3000'}/verify?id=${certificateId}`;
+        const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+        const verificationUrl = `${clientBase}/certificate/${certificateId}`;
 
         const pdfBuffer = await createCertificatePdfBuffer({
           certificateId,

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
@@ -62,6 +62,7 @@ type BulkVerificationEntry = {
 
 export function VerificationWidget() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [mode, setMode] = useState<VerifyMode>('id');
   const [value, setValue] = useState('');
   const [bulkValue, setBulkValue] = useState('');
@@ -81,12 +82,10 @@ export function VerificationWidget() {
   useEffect(() => {
     const queryId = searchParams.get('id');
     if (queryId) {
-      setMode('id');
-      setValue(queryId);
-      // Wait a moment for state to settle, then verify
-      setTimeout(() => verify(queryId), 100);
+      const clean = (queryId.match(/BC-[A-Z0-9]{8}/i)?.[0] || queryId).toUpperCase();
+      router.replace(`/certificate/${clean}`);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const downloadPdf = async () => {
     if (!diplomaRef.current || !result?.certificate) return;
@@ -369,13 +368,20 @@ export function VerificationWidget() {
         </div>
         {mode === 'qr' ? (
           <div className="mt-5 space-y-4">
-            <QRScanner onScan={(decodedText) => verify(decodedText, 'qr')} />
+            <QRScanner
+              onScan={(decodedText) => {
+                const bcMatch = decodedText.match(/BC-[A-Z0-9]{8}/i) || decodedText.match(/[?&]id=([A-Z0-9-]+)/i) || decodedText.match(/\/certificate\/([A-Z0-9-]+)/i);
+                const cleanId = bcMatch ? (bcMatch[1] || bcMatch[0]).toUpperCase() : decodedText.trim().toUpperCase();
+                toast.success(`Scanned Certificate: ${cleanId}. Opening public verification page...`);
+                router.push(`/certificate/${cleanId}`);
+              }}
+            />
             <div className="pt-2 text-center">
               <button
                 type="button"
                 onClick={() => {
                   const id = result?.certificate?.certificateId || 'BC-5A4A9D6E';
-                  verify(id, 'qr');
+                  router.push(`/certificate/${id}`);
                 }}
                 className="text-xs font-semibold text-accent hover:underline inline-flex items-center gap-1"
               >
