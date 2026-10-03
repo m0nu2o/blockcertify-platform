@@ -14,7 +14,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.5fr,2fr]">
         <div>
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid size-12 place-items-center rounded-2xl bg-accent/15 text-accent shadow-glow"><ShieldCheck className="size-6" /></div>
+            <div className="grid size-10 place-items-center rounded-2xl bg-accent/15 text-accent shadow-glow"><ShieldCheck className="size-6" /></div>
             <div>
               <div className="font-semibold">BlockCertify</div>
               <div className="text-sm text-foreground/65">Secure digital certificates with verifiable on-chain trust.</div>

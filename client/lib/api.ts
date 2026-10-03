@@ -122,6 +122,31 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
     return { success: true, message: 'Notification updated' } as unknown as T;
   }
 
+  if (p === '/explorer/latest') {
+    const certMap = new Map<string, any>();
+    for (const c of localCerts) {
+      if (c.certificateId) certMap.set(c.certificateId, c);
+    }
+    for (const c of seedData.certificates || []) {
+      if (c.certificateId && !certMap.has(c.certificateId)) {
+        certMap.set(c.certificateId, c);
+      }
+    }
+    const combined = Array.from(certMap.values()).map((c) => ({
+      _id: c._id || `ledger-${c.certificateId}`,
+      certificateId: c.certificateId,
+      studentName: c.studentName,
+      course: c.course || c.degree || 'Degree Program',
+      institutionName: c.institutionName || 'Issuing Institution',
+      issueDate: c.issueDate || new Date().toISOString(),
+      transactionHash: c.transactionHash || '0x498e72ba6f731c90a1b8d5e4f2c1b9a8e7d6c5b4',
+    }));
+    return {
+      success: true,
+      data: combined.slice(0, 10),
+    } as unknown as T;
+  }
+
   if (p === '/certificates' || p === '/certificates/recent') {
     // Map to prevent duplicate certificate IDs while putting newly issued first
     const certMap = new Map<string, any>();

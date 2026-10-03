@@ -150,6 +150,8 @@ export function VerificationWidget() {
       setResult(response.data);
       if (response.data.valid) {
         toast.success('Certificate verified successfully!');
+      } else if (response.data.verificationState === 'not_found') {
+        toast.error('Credential Not Found — Please check the Certificate ID and try again.');
       } else if (response.data.verificationState === 'revoked') {
         toast.error('Notice: This credential has been REVOKED.');
       } else if (response.data.verificationState === 'expired') {
@@ -161,7 +163,7 @@ export function VerificationWidget() {
       } else if (response.data.verificationState === 'integrity_failed') {
         toast.error('Cryptographic integrity check failed.');
       } else {
-        toast.error(response.data.verificationMessage || 'Verification failed');
+        toast.error(response.data.verificationMessage || 'Credential Not Found');
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Verification failed';

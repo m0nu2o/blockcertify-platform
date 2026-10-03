@@ -24,9 +24,12 @@ export default function ExplorerPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch<{ success: boolean; data: LedgerEntry[] }>('/explorer/latest')
+    apiFetch<{ success?: boolean; data?: any }>('/explorer/latest')
       .then((res) => {
-        setEntries(res.data);
+        const list = Array.isArray(res?.data) ? res.data : (res?.data?.items || []);
+        if (list.length > 0) {
+          setEntries(list);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));

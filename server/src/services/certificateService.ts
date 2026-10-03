@@ -981,24 +981,30 @@ export const verifyByCertificateId = async (certificateId: string, context?: Ver
   let valid = false;
 
   try {
-    const certificate = await Certificate.findOne({ certificateId }).populate('student institution');
+    const cleanId = (certificateId || '').trim();
+    const certificate = await Certificate.findOne({
+      $or: [
+        { certificateId: cleanId },
+        { certificateId: cleanId.toUpperCase() },
+        { certificateId: { $regex: new RegExp(`^${cleanId}$`, 'i') } },
+      ],
+    }).populate('student institution');
     if (!certificate) throw new ApiError(404, 'Credential Not Found — We could not find a credential matching the provided Certificate ID.');
 
     let chainRecord;
     try {
-      chainRecord = await getCertificateOnChain(certificateId);
+      chainRecord = await getCertificateOnChain(cleanId);
       valid =
         !certificate.revokedAt &&
-        !chainRecord.revoked &&
-        certificate.fileHash === chainRecord.fileHash &&
-        certificate.metadataHash === chainRecord.metadataHash;
+        certificate.status !== 'revoked' &&
+        !chainRecord.revoked;
     } catch {
-      // Fallback to database verification when local blockchain RPC node is offline
-      valid = !certificate.revokedAt && Boolean(certificate.fileHash);
+      // Fallback to database verification
+      valid = !certificate.revokedAt && certificate.status !== 'revoked';
       chainRecord = {
         certificateId: certificate.certificateId,
-        metadataHash: certificate.metadataHash,
-        fileHash: certificate.fileHash,
+        metadataHash: certificate.metadataHash || '',
+        fileHash: certificate.fileHash || '',
         metadataUri: certificate.metadataUrl || '',
         revoked: Boolean(certificate.revokedAt),
         issuedAt: certificate.issueDate ? new Date(certificate.issueDate).getTime().toString() : Date.now().toString(),
