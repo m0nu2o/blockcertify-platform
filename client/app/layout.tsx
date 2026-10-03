@@ -36,8 +36,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </LenisProvider>
           </FontProvider>
         </LanguageProvider>
-        <footer className="border-t border-border/10 bg-background/50 py-3 px-4 text-center text-xs font-medium text-foreground/50 backdrop-blur-md shrink-0 select-none tracking-wide">
-          © 2026 BlockCertify. All rights reserved. Unauthorized copying, distribution, or reverse engineering is prohibited.
+        <footer className="border-t border-border/15 bg-background/60 py-6 sm:py-8 px-6 text-center text-sm sm:text-xs text-foreground/70 backdrop-blur-md shrink-0 select-none tracking-wide">
+          <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-2">
+            <p>© 2026 BlockCertify. All rights reserved. Unauthorized copying, distribution, or reverse engineering is prohibited.</p>
+          </div>
         </footer>
       </body>
     </html>

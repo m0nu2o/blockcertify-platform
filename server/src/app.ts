@@ -88,5 +88,57 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/explorer', explorerRoutes);
 app.use('/api/students', studentRoutes);
 
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, email, institution, message, phone } = req.body || {};
+    if (!name || !email || !message) {
+      return res.status(400).json({ success: false, message: 'Name, email, and message are required' });
+    }
+
+    try {
+      const NotificationModel = (await import('./models/Notification.js')).default;
+      const UserModel = (await import('./models/User.js')).default;
+      const admin = await UserModel.findOne({ role: 'admin' });
+      if (admin) {
+        await NotificationModel.create({
+          user: admin._id,
+          title: `New Inquiry from ${name}`,
+          message: `${name} (${email}) from ${institution || 'Independent'} sent an inquiry: "${message.slice(0, 150)}"`,
+          type: 'info',
+          read: false,
+        });
+      }
+    } catch {
+      // ignore notification errors
+    }
+
+    try {
+      const { sendEmail } = await import('./services/emailService.js');
+      await sendEmail({
+        to: process.env.SMTP_USER || 'admin@blockcertify.com',
+        subject: `[BlockCertify] Inquiry from ${name} (${institution || 'Institution'})`,
+        html: `
+          <h2>New Product & Rollout Inquiry</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Institution / Company:</strong> ${institution || 'N/A'}</p>
+          ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ''}
+          <p><strong>Message:</strong></p>
+          <p style="background: #f4f4f5; padding: 12px; border-radius: 8px;">${message}</p>
+        `,
+      });
+    } catch {
+      // ignore email delivery errors
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Inquiry received successfully! Our team will contact you shortly.',
+    });
+  } catch (err: unknown) {
+    return res.status(500).json({ success: false, message: (err as Error)?.message || 'Failed to submit inquiry' });
+  }
+});
+
 app.use(notFoundHandler);
 app.use(errorHandler);

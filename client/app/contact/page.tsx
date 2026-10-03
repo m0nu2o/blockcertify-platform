@@ -12,8 +12,8 @@ export default function ContactPage() {
             <h1 className="text-4xl font-semibold tracking-tight">Contact BlockCertify</h1>
             <p className="mt-4 text-sm leading-7 text-foreground/65">Speak with our team about institution onboarding, blockchain architecture, migration, compliance, or enterprise licensing.</p>
             <div className="mt-8 grid gap-4 text-sm text-foreground/70">
-              <div><div className="font-medium">Sales</div><div>sales@blockcertify.com</div></div>
-              <div><div className="font-medium">Support</div><div>support@blockcertify.com</div></div>
+              <div><div className="font-medium">Sales</div><div>jultoexclusive@gmail.com</div></div>
+              <div><div className="font-medium">Support</div><div>percyywii@gmail.com</div></div>
               <div><div className="font-medium">Headquarters</div><div>Digital Trust Avenue, Global Campus District</div></div>
             </div>
           </GlassCard>

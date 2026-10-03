@@ -122,6 +122,20 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
     return { success: true, message: 'Notification updated' } as unknown as T;
   }
 
+  if (p === '/contact' && method === 'POST') {
+    try {
+      const stored = JSON.parse(localStorage.getItem('blockcertify-contact-inquiries') || '[]');
+      const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+      stored.unshift({ id: `inq-${Date.now()}`, ...parsedBody, createdAt: new Date().toISOString() });
+      localStorage.setItem('blockcertify-contact-inquiries', JSON.stringify(stored.slice(0, 50)));
+    } catch { /* ignore */ }
+
+    return {
+      success: true,
+      message: 'Inquiry received successfully! Our team will contact you shortly.',
+    } as unknown as T;
+  }
+
   if (p === '/explorer/latest') {
     const certMap = new Map<string, any>();
     for (const c of localCerts) {
