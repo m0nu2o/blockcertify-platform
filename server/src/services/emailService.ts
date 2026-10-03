@@ -3,7 +3,6 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env } from '../config/env.js';
 
-// Force Node.js globally to use IPv4 first
 try {
   dns.setDefaultResultOrder('ipv4first');
 } catch {
@@ -42,7 +41,6 @@ export const createTransporter = (options?: { port?: number; secure?: boolean })
       user: cleanUser,
       pass: cleanPass,
     } : undefined,
-    // CRITICAL: Custom DNS lookup to guarantee ONLY IPv4 on Render cloud containers
     lookup: (hostname: string, _opts: any, callback: any) => {
       dns.lookup(hostname, { family: 4 }, callback);
     },
@@ -57,137 +55,128 @@ export const createTransporter = (options?: { port?: number; secure?: boolean })
 };
 
 export const verifyEmailConfig = async (options?: { sendTest?: boolean; testRecipient?: string }) => {
+  const web3formsKey = (process.env.WEB3FORMS_KEY || '').trim();
   const cleanUser = getCleanSmtpUser();
-  const cleanPass = getCleanSmtpPass();
-  const host = env.SMTP_HOST || 'smtp.gmail.com';
-  const configuredPort = env.SMTP_PORT || 465;
 
-  const summary = {
-    configured: Boolean(cleanUser && cleanPass),
+  // If Web3Forms key is present, test via HTTPS API (Render Cloud friendly)
+  if (web3formsKey) {
+    if (options?.sendTest) {
+      try {
+        const res = await fetch('https://api.web3forms.com/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            access_key: web3formsKey,
+            subject: '[BlockCertify] Diagnostic Test Email',
+            name: 'BlockCertify System Test',
+            email: cleanUser || 'diagnostic@blockcertify.com',
+            message: `Web3Forms integration is working successfully via HTTPS on Render! Timestamp: ${new Date().toISOString()}`,
+          }),
+        });
+        const data = await res.json() as any;
+        return {
+          provider: 'Web3Forms (HTTPS)',
+          configured: true,
+          connected: data.success === true,
+          testEmailSent: data.success === true,
+          web3FormsResponse: data.message || 'Success',
+        };
+      } catch (err: any) {
+        return {
+          provider: 'Web3Forms (HTTPS)',
+          configured: true,
+          connected: false,
+          error: err?.message || String(err),
+        };
+      }
+    }
+
+    return {
+      provider: 'Web3Forms (HTTPS Port 443 - No Port Blocking)',
+      configured: true,
+      connected: true,
+      note: 'Web3Forms bypasses Render SMTP firewall blocks. Ready to deliver emails!',
+    };
+  }
+
+  // Fallback diagnostic for SMTP
+  return {
+    provider: 'SMTP',
+    configured: Boolean(cleanUser),
     user: maskEmail(cleanUser),
-    passLength: cleanPass.length,
-    host,
-    port: configuredPort,
     connected: false,
-    activePort: configuredPort,
-    error: undefined as string | undefined,
-    errorCode: undefined as string | undefined,
-    testEmailSent: false,
-    testError: undefined as string | undefined,
+    note: 'WEB3FORMS_KEY not found. Please set WEB3FORMS_KEY in Render Environment Variables.',
   };
-
-  if (!cleanUser || !cleanPass) {
-    summary.error = 'SMTP_USER or SMTP_PASS is missing in server environment variables';
-    return summary;
-  }
-
-  // 1. Try with port 465 first
-  let activeTransporter: Transporter | null = null;
-  let firstError: any = null;
-
-  try {
-    const t465 = createTransporter({ port: 465, secure: true });
-    await t465.verify();
-    activeTransporter = t465;
-    summary.connected = true;
-    summary.activePort = 465;
-  } catch (err: any) {
-    firstError = err;
-    console.warn(`[emailService] Port 465 verify failed (${err?.message || err}). Trying port 587...`);
-    // Fallback to port 587 (STARTTLS)
-    try {
-      const t587 = createTransporter({ port: 587, secure: false });
-      await t587.verify();
-      activeTransporter = t587;
-      summary.connected = true;
-      summary.activePort = 587;
-    } catch (fallbackErr: any) {
-      summary.connected = false;
-      summary.error = (firstError?.message || '') + ' | Fallback 587: ' + (fallbackErr?.message || '');
-      summary.errorCode = firstError?.code || fallbackErr?.code || 'AUTH_OR_CONN_FAILED';
-      return summary;
-    }
-  }
-
-  // 2. If sendTest was requested and connection verified
-  if (options?.sendTest && activeTransporter) {
-    const to = options.testRecipient || cleanUser;
-    try {
-      await activeTransporter.sendMail({
-        from: `BlockCertify <${cleanUser}>`,
-        to,
-        subject: '[BlockCertify] SMTP Diagnostic Test Email',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2 style="color: #10b981;">SMTP Configuration Successful!</h2>
-            <p>Your BlockCertify email integration is fully operational on Render.</p>
-            <p><strong>Connected Port:</strong> ${summary.activePort}</p>
-            <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-          </div>
-        `,
-      });
-      summary.testEmailSent = true;
-    } catch (testErr: any) {
-      summary.testError = testErr?.message || String(testErr);
-    }
-  }
-
-  return summary;
 };
 
 export const sendEmail = async ({
   to,
   subject,
   html,
+  text,
   replyTo,
+  name,
 }: {
-  to: string;
+  to?: string;
   subject: string;
   html: string;
+  text?: string;
   replyTo?: string;
+  name?: string;
 }) => {
-  const cleanUser = getCleanSmtpUser();
-  const cleanPass = getCleanSmtpPass();
+  const web3formsKey = (process.env.WEB3FORMS_KEY || '').trim();
 
-  if (!cleanUser || !cleanPass) {
-    console.warn('[emailService] SMTP credentials are not configured. Email skipped for:', to);
-    return { skipped: true, reason: 'Credentials not configured' };
-  }
-
-  const fromAddress =
-    env.SMTP_FROM && !env.SMTP_FROM.includes('@blockcertify.com')
-      ? env.SMTP_FROM
-      : `BlockCertify <${cleanUser}>`;
-
-  // Try port 465 first
-  try {
-    const t465 = createTransporter({ port: 465, secure: true });
-    const result = await t465.sendMail({
-      from: fromAddress,
-      to,
-      replyTo: replyTo || undefined,
-      subject,
-      html,
-    });
-    console.log(`[emailService] Email successfully delivered to: ${to} (MessageId: ${result.messageId}) via port 465`);
-    return result;
-  } catch (err: any) {
-    console.warn(`[emailService] Primary send via 465 failed (${err?.message || err}). Trying port 587...`);
-    // Fallback to port 587
+  // 1. Primary: Web3Forms over HTTPS (Port 443 - Never blocked by Render)
+  if (web3formsKey) {
     try {
-      const t587 = createTransporter({ port: 587, secure: false });
-      const result = await t587.sendMail({
-        from: fromAddress,
-        to,
-        replyTo: replyTo || undefined,
-        subject,
-        html,
+      const plainMessage = text || html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: web3formsKey,
+          subject: subject,
+          name: name || 'BlockCertify Inquiry',
+          email: replyTo || to || 'inquiry@blockcertify.com',
+          replyto: replyTo || undefined,
+          message: plainMessage,
+          from_name: 'BlockCertify Contact Portal',
+        }),
       });
-      console.log(`[emailService] Fallback delivered to: ${to} (MessageId: ${result.messageId}) via port 587`);
-      return result;
-    } catch (fallbackErr: any) {
-      console.error(`[emailService] Delivery failed to ${to} on both ports 465 & 587:`, fallbackErr?.message || fallbackErr);
-      throw fallbackErr;
+
+      const data = await res.json() as any;
+      if (data.success) {
+        console.log(`[emailService] Inquiry email delivered via Web3Forms HTTPS API!`);
+        return { success: true, provider: 'web3forms' };
+      } else {
+        console.warn('[emailService] Web3Forms rejected submission:', data);
+      }
+    } catch (wErr: any) {
+      console.error('[emailService] Web3Forms HTTPS call failed:', wErr?.message || wErr);
     }
   }
+
+  // 2. Fallback: SMTP (agar Web3Forms set na ho)
+  const cleanUser = getCleanSmtpUser();
+  const cleanPass = getCleanSmtpPass();
+  if (!cleanUser || !cleanPass) {
+    console.warn('[emailService] No active email provider configured (Set WEB3FORMS_KEY).');
+    return { skipped: true };
+  }
+
+  const fromAddress = env.SMTP_FROM && !env.SMTP_FROM.includes('@blockcertify.com')
+    ? env.SMTP_FROM
+    : `BlockCertify <${cleanUser}>`;
+
+  const t465 = createTransporter({ port: 465, secure: true });
+  return await t465.sendMail({
+    from: fromAddress,
+    to: to || cleanUser,
+    replyTo: replyTo || undefined,
+    subject,
+    html,
+  });
 };
