@@ -288,13 +288,21 @@ export default function AdminDashboardPage() {
 
   const runBulkVerify = useCallback(async () => {
     if (!session?.user.accessToken) return;
-    const certificateIds = bulkVerifyInput
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const certificateIds = Array.from(
+      new Set(
+        bulkVerifyInput
+          .split(/[\r\n,;\s]+/)
+          .map((line) => line.trim())
+          .filter((l) => l.length >= 4)
+          .map((l) => {
+            const m = l.match(/BC-[A-Z0-9]{8}/i);
+            return m ? m[0].toUpperCase() : l.toUpperCase();
+          })
+      )
+    );
 
     if (certificateIds.length === 0) {
-      toast.error('Enter at least one certificate ID.');
+      toast.error('Enter at least one valid certificate ID (e.g. BC-5A4A9D6E).');
       return;
     }
 
@@ -306,7 +314,15 @@ export default function AdminDashboardPage() {
         token: session.user.accessToken,
         body: JSON.stringify({ certificateIds }),
       });
-      setBulkVerifyResults(response.data);
+      const rawData = response?.data;
+      const results: BulkVerifyResult[] = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray((rawData as any)?.results)
+        ? (rawData as any).results
+        : [];
+      setBulkVerifyResults(results);
+      const validCount = results.filter((r) => r.success && (r.data?.valid ?? (r as any).valid)).length;
+      toast.success(`Verified ${results.length} certificates (${validCount} valid).`);
     } catch (verifyError) {
       toast.error(verifyError instanceof Error ? verifyError.message : 'Bulk verification failed');
     } finally {

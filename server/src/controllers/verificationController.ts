@@ -155,7 +155,19 @@ export const verifyByQrController = asyncHandler(async (req: Request, res: Respo
 });
 
 export const verifyBulkController = asyncHandler(async (req: Request, res: Response) => {
-  const body = z.object({ certificateIds: z.array(z.string().min(4)).min(1).max(50) }).parse(req.body);
+  const rawList = req.body?.certificateIds || req.body?.ids || req.body?.certificates || [];
+  const normalizedIds = Array.isArray(rawList)
+    ? rawList
+        .map((id: unknown) => String(id || '').trim())
+        .filter((id: string) => id.length >= 4)
+    : [];
+
+  const body = z
+    .object({
+      certificateIds: z.array(z.string().min(4)).min(1, 'Please provide at least one Certificate ID').max(50),
+    })
+    .parse({ certificateIds: normalizedIds });
+
   const results = await verifyBulk(body.certificateIds, requestContext(req));
   const sanitizedResults = results.map((item) => ({
     certificateId: item.certificateId,

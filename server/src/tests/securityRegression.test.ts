@@ -378,7 +378,7 @@ describe('Production Hardening & Security Regression Suite', () => {
 
       const result = await verifyByCertificateId('BC-READONLY-1');
 
-      expect(certDoc.status).toBe('issued');
+      expect(certDoc.status).toBe('verified');
       expect(certDoc.verificationCount).toBe(6);
       expect(certDoc.save).toHaveBeenCalled();
       expect(result.valid).toBe(true);

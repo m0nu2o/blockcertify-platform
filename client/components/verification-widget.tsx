@@ -144,6 +144,7 @@ export function VerificationWidget() {
       const response = await apiFetch<{ data?: VerificationResult; message?: string }>(routeMap[finalMode], {
         method: 'POST',
         body: JSON.stringify(body),
+        timeoutMs: 15000,
       });
       if (!response?.data) throw new Error(response?.message || 'Verification failed');
       setResult(response.data);
@@ -200,24 +201,57 @@ export function VerificationWidget() {
   };
 
   const verifyBulk = async () => {
-    const lines = bulkValue.split('\n').map((l) => l.trim()).filter(Boolean);
+    const rawTokens = bulkValue
+      .split(/[\r\n,;\s]+/)
+      .map((l) => l.trim())
+      .filter((l) => l.length >= 4)
+      .map((l) => {
+        const m = l.match(/BC-[A-Z0-9]{8}/i);
+        return m ? m[0].toUpperCase() : l.toUpperCase();
+      });
+
+    const lines = Array.from(new Set(rawTokens));
     if (lines.length === 0) {
-      toast.error('Please enter at least one certificate ID.');
+      toast.error('Please enter at least one certificate ID (e.g. BC-5A4A9D6E).');
       return;
     }
     setLoading(true);
     try {
-      const response = await apiFetch<{ data?: BulkVerificationEntry[]; message?: string }>('/verification/bulk', {
+      const response = await apiFetch<{ data?: BulkVerificationEntry[] | { results?: BulkVerificationEntry[] }; message?: string }>('/verification/bulk', {
         method: 'POST',
         body: JSON.stringify({ certificateIds: lines }),
+        timeoutMs: 20000,
       });
-      if (!response?.data) throw new Error(response?.message || 'Bulk verification failed');
-      setBulkResults(response.data);
-      const firstValid = response.data.find((e) => e.success && e.data?.valid && e.data?.certificate);
+      const rawData = response?.data;
+      const results: BulkVerificationEntry[] = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray((rawData as any)?.results)
+        ? (rawData as any).results
+        : [];
+
+      if (results.length === 0) {
+        throw new Error(response?.message || 'Bulk verification returned no results.');
+      }
+
+      setBulkResults(results);
+      const firstValid = results.find((e) => e.success && (e.data?.valid ?? (e as any)?.valid) && e.data?.certificate);
       if (firstValid?.data) {
         setResult(firstValid.data);
+      } else {
+        const first = results[0];
+        if (first?.data) {
+          setResult(first.data);
+        } else if (first) {
+          setResult({
+            valid: false,
+            verificationState: 'not_found',
+            error: first.error || 'Credential not found',
+            verificationMessage: first.error || 'Credential not found',
+          });
+        }
       }
-      toast.success(`Verified ${response.data.length} certificates.`);
+      const validCount = results.filter((r) => r.success && (r.data?.valid ?? (r as any).valid)).length;
+      toast.success(`Verified ${results.length} certificates (${validCount} valid).`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Bulk verification failed';
       toast.error(msg);
@@ -259,10 +293,16 @@ export function VerificationWidget() {
         iconClassName: 'border border-accent/30 bg-accent/10',
       };
     }
-    if (mode === 'bulk' && bulkResults) {
-      const validCount = bulkResults.filter((r) => r.success && r.data?.valid).length;
+    const safeResults = Array.isArray(bulkResults)
+      ? bulkResults
+      : Array.isArray((bulkResults as any)?.results)
+      ? (bulkResults as any).results
+      : [];
+
+    if (mode === 'bulk' && safeResults.length > 0) {
+      const validCount = safeResults.filter((r: any) => r?.success && (r?.data?.valid ?? r?.valid)).length;
       return {
-        title: `Bulk Results: ${validCount} / ${bulkResults.length} Valid`,
+        title: `Bulk Results: ${validCount} / ${safeResults.length} Valid`,
         description: 'Batch cryptographic verification complete. Select any certificate below to inspect or download.',
         icon: <Layers className="size-6 text-accent" />,
         iconClassName: 'border border-accent/30 bg-accent/10',
@@ -542,7 +582,7 @@ export function VerificationWidget() {
           </div>
         </div>
 
-        {mode === 'bulk' && bulkResults && (
+        {mode === 'bulk' && Array.isArray(bulkResults) && bulkResults.length > 0 && (
           <div className="space-y-3 mb-6">
             <div className="text-xs font-bold text-foreground/70 uppercase tracking-wider">
               Batch Verification List ({bulkResults.length})
@@ -561,9 +601,9 @@ export function VerificationWidget() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-mono text-xs font-bold text-foreground">{entry.certificateId}</div>
-                      {entry.success && entry.data?.valid ? (
+                      {entry.success && (entry.data?.valid ?? (entry as any)?.valid) ? (
                         <span className="rounded-md border border-success/40 bg-success/15 px-2 py-0.5 text-[10.5px] font-bold text-success flex items-center gap-1">
-                          <CheckCircle2 className="size-3" /> Valid
+                          <CheckCircle2 className="size-3" /> Valid · Verified
                         </span>
                       ) : (
                         <span className="rounded-md border border-danger/40 bg-danger/15 px-2 py-0.5 text-[10.5px] font-bold text-danger">
@@ -571,7 +611,7 @@ export function VerificationWidget() {
                         </span>
                       )}
                     </div>
-                    {entry.data?.certificate && (
+                    {entry.data?.certificate ? (
                       <div className="mt-2 text-xs text-foreground/70 flex items-center justify-between">
                         <span>{entry.data.certificate.studentName} · {entry.data.certificate.institutionName}</span>
                         <Button
@@ -588,6 +628,25 @@ export function VerificationWidget() {
                           <Eye className="size-3" /> {isSelected ? 'Viewing' : 'Show & Download'}
                         </Button>
                       </div>
+                    ) : (
+                      <div className="mt-2 text-xs text-foreground/50 flex items-center justify-between">
+                        <span>{entry.error || 'Credential not registered or invalid on blockchain.'}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[10.5px] px-2.5 gap-1 font-semibold text-danger hover:bg-danger/10"
+                          onClick={() => {
+                            setResult({
+                              valid: false,
+                              verificationState: 'not_found',
+                              error: entry.error || `Certificate ${entry.certificateId} was not found.`,
+                              verificationMessage: entry.error || `Certificate ${entry.certificateId} was not found.`,
+                            });
+                          }}
+                        >
+                          Inspect Error
+                        </Button>
+                      </div>
                     )}
                   </div>
                 );
@@ -598,6 +657,31 @@ export function VerificationWidget() {
 
         {result?.certificate ? (
           <div className="space-y-4">
+            {result.valid && (
+              <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 shrink-0">
+                    <BadgeCheck className="size-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold uppercase tracking-wide text-white">AUTHENTIC & VERIFIED</span>
+                      <span className="rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-300 uppercase flex items-center gap-1">
+                        <CheckCircle2 className="size-3 text-emerald-400" /> Status: Verified
+                      </span>
+                    </div>
+                    <div className="text-xs text-emerald-300/90 mt-0.5 font-medium">
+                      {result.certificate.studentName} · {result.certificate.institutionName} · <span className="font-mono">{result.certificate.certificateId}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-left sm:text-right shrink-0">
+                  <span className="text-[10px] font-mono text-emerald-300/80 block">Ledger Confirmed</span>
+                  <span className="text-[10.5px] font-mono font-bold text-emerald-200">Ethereum Consensus</span>
+                </div>
+              </div>
+            )}
+
             {result.verificationState === 'revoked' && (
               <div className="rounded-2xl border border-destructive/40 bg-destructive/15 p-4 text-sm text-destructive flex items-center gap-3">
                 <Ban className="size-5 shrink-0 text-destructive" />

@@ -25,7 +25,7 @@ const initialForm: ContactFormData = {
   message: '',
 };
 
-// 🔑 Yaha apni Web3Forms Access Key daalein
+//  Yaha apni Web3Forms API Key
 const WEB3FORMS_KEY = process.env.NEXT_PUBLIC_WEB3FORMS_KEY || 'c5c1d558-8cd0-499f-96a4-cf10b3f6e5d1';
 
 export function ContactForm() {

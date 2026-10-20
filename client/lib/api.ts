@@ -463,6 +463,101 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
     } as unknown as T;
   }
 
+  // Bulk Verification Fallback
+  if (p === '/verification/bulk') {
+    let ids: string[] = [];
+    if (body) {
+      try {
+        const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+        ids = Array.isArray(parsed.certificateIds)
+          ? parsed.certificateIds
+          : Array.isArray(parsed.ids)
+          ? parsed.ids
+          : [];
+      } catch { /* ignore */ }
+    }
+
+    const allCerts = [...localCerts, ...(seedData.certificates || [])];
+    const certMap = new Map<string, any>();
+    for (const c of allCerts) {
+      if (c.certificateId) {
+        certMap.set(c.certificateId.toUpperCase(), c);
+      }
+    }
+
+    const results = ids.map((rawId) => {
+      const idMatch = rawId.match(/BC-[A-Z0-9]{8}/i) || rawId.match(/[?&]ID=([A-Z0-9-]+)/i);
+      const cleanId = (idMatch ? idMatch[1] || idMatch[0] : rawId).trim().toUpperCase();
+      const found = certMap.get(cleanId);
+
+      if (!found) {
+        return {
+          certificateId: cleanId,
+          success: false,
+          error: 'Credential Not Found — We could not find a credential matching the provided Certificate ID.',
+        };
+      }
+
+      const isValid = found.status !== 'revoked' && found.status !== 'expired';
+      if (isValid && found.status !== 'verified') {
+        found.status = 'verified';
+        if (typeof window !== 'undefined') {
+          try {
+            const stored = JSON.parse(localStorage.getItem('blockcertify-local-certificates') || '[]');
+            const idx = stored.findIndex((x: any) => (x.certificateId || '').toUpperCase() === cleanId);
+            if (idx >= 0) {
+              stored[idx].status = 'verified';
+              localStorage.setItem('blockcertify-local-certificates', JSON.stringify(stored));
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      const certState = found.status === 'revoked' ? 'revoked' : found.status === 'expired' ? 'expired' : 'valid';
+
+      return {
+        certificateId: cleanId,
+        success: true,
+        data: {
+          valid: isValid,
+          verificationState: certState,
+          title: isValid ? 'Credential Verified' : found.status === 'revoked' ? 'Credential Revoked' : 'Credential Expired',
+          message: isValid
+            ? 'Credential Verified — This credential matches the record registered by the issuing institution.'
+            : found.status === 'revoked'
+            ? 'Credential Revoked — This credential was previously issued but has been revoked.'
+            : 'Credential Expired — Validity period has expired.',
+          verificationMessage: isValid
+            ? 'Credential Verified — This credential matches the record registered by the issuing institution.'
+            : found.status === 'revoked'
+            ? 'Credential Revoked — This credential was previously issued but has been revoked.'
+            : 'Credential Expired — Validity period has expired.',
+          verifiedAt: new Date().toISOString(),
+          certificate: {
+            certificateId: found.certificateId,
+            studentName: found.studentName,
+            institutionName: found.institutionName,
+            issueDate: found.issueDate,
+            expiryDate: found.expiryDate,
+            status: isValid ? 'verified' : found.status,
+            fileHash: found.fileHash,
+            transactionHash: found.transactionHash,
+            degree: found.degree,
+            course: found.course,
+            department: found.department,
+            network: found.network || 'ethereum',
+          },
+        },
+      };
+    });
+
+    return {
+      success: true,
+      message: 'Bulk verification completed',
+      data: results,
+    } as unknown as T;
+  }
+
   // Verification Fallback — searches by the actual ID/hash the user entered
   if (p.startsWith('/verification/')) {
     const verifyType = p.split('/')[2]; // 'id' | 'hash' | 'transaction' | 'qr'
@@ -537,14 +632,29 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
       } as unknown as T;
     }
 
-    const certStatus = found.status === 'revoked' ? 'revoked' : 'valid';
+    const isValid = found.status !== 'revoked' && found.status !== 'expired';
+    if (isValid && found.status !== 'verified') {
+      found.status = 'verified';
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = JSON.parse(localStorage.getItem('blockcertify-local-certificates') || '[]');
+          const idx = stored.findIndex((x: any) => (x.certificateId || '').toUpperCase() === (found.certificateId || '').toUpperCase());
+          if (idx >= 0) {
+            stored[idx].status = 'verified';
+            localStorage.setItem('blockcertify-local-certificates', JSON.stringify(stored));
+          }
+        } catch { /* ignore */ }
+      }
+    }
+
+    const certStatus = found.status === 'revoked' ? 'revoked' : found.status === 'expired' ? 'expired' : 'valid';
     return {
       success: true,
       message: 'Certificate successfully verified against blockchain record',
       data: {
-        valid: certStatus === 'valid',
+        valid: isValid,
         verificationState: certStatus,
-        onChainValid: certStatus === 'valid',
+        onChainValid: isValid,
         contractAddress: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
         certificate: {
           certificateId: found.certificateId,
@@ -552,7 +662,7 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
           studentId: found.studentId,
           institutionName: found.institutionName,
           issueDate: found.issueDate,
-          status: found.status || 'valid',
+          status: isValid ? 'verified' : found.status,
           fileHash: found.fileHash,
           transactionHash: found.transactionHash,
           metadataHash: found.metadataHash,

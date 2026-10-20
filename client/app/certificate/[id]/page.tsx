@@ -98,12 +98,21 @@ export default function CertificatePublicPage() {
         }>('/verification/id', {
           method: 'POST',
           body: JSON.stringify({ certificateId: cleanId }),
+          timeoutMs: 15000,
         });
 
         let foundCert = response?.data?.certificate;
 
-        // If API returned certificate but not valid state (e.g. not found)
-        if (response?.data?.verificationState === 'not_found' || response?.success === false) {
+        // Only hide the cert if backend explicitly says it does not exist
+        // (not_found state), or the entire response failed.
+        // Do NOT hide certs that are blockchain_pending, blockchain_failed,
+        // integrity_failed, revoked, or expired — they still have valid data.
+        const backendExplicitlyMissing =
+          response?.success === false ||
+          response?.data?.verificationState === 'not_found' ||
+          (!response?.data?.certificate && !response?.data?.valid);
+
+        if (backendExplicitlyMissing && !foundCert) {
           foundCert = undefined;
         }
 

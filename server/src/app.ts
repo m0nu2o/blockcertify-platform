@@ -68,6 +68,21 @@ app.use('/files', (req, res, next) => {
 }, express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/api/health', (_req, res) => res.json({ success: true, message: 'BlockCertify API healthy' }));
+
+// Root health check — Render, Railway, and load balancers hit GET / or HEAD /
+// Without this the server logs "404" every health probe, misleading monitoring.
+app.get('/', (_req, res) => res.json({ success: true, service: 'BlockCertify API', version: '1.0.0', status: 'running' }));
+app.head('/', (_req, res) => res.sendStatus(200));
+
+// Normalize double-slashes in URLs (e.g. GET //notifications → GET /notifications).
+// Some reverse-proxies and fetch clients can accidentally produce double slashes.
+app.use((req, _res, next) => {
+  if (req.path.includes('//')) {
+    req.url = req.url.replace(/\/\/+/g, '/');
+  }
+  next();
+});
+
 app.get('/api/health/blockchain', async (_req, res) => {
   try {
     const { getBlockchainHealth } = await import('./services/blockchainService.js');

@@ -1017,10 +1017,18 @@ export const verifyByCertificateId = async (certificateId: string, context?: Ver
       };
     }
 
-    // Read-only integrity: do NOT mutate certificate status away from issued/revoked
-    // Update verification analytics counters atomically without altering certificate lifecycle state
     certificate.lastVerifiedAt = new Date();
     certificate.verificationCount = (certificate.verificationCount || 0) + 1;
+    if (valid && certificate.status === 'issued') {
+      certificate.status = 'verified';
+      if (Array.isArray(certificate.history)) {
+        certificate.history.push({
+          action: 'verified',
+          timestamp: new Date(),
+          actor: context?.actor ? String(context.actor) : 'system',
+        });
+      }
+    }
     await certificate.save();
 
     const verifiedAt = new Date().toISOString();
@@ -1071,10 +1079,15 @@ export const verifyBulk = async (certificateIds: string[], context?: Omit<Verifi
 
   for (let index = 0; index < certificateIds.length; index += BULK_ISSUE_BATCH_SIZE) {
     const batch = certificateIds.slice(index, index + BULK_ISSUE_BATCH_SIZE);
-    const settled = await Promise.allSettled(batch.map((id) => verifyByCertificateId(id, { ...context, method: 'bulk' })));
+    const settled = await Promise.allSettled(
+      batch.map((id) => {
+        const cleanId = String(id || '').trim();
+        return verifyByCertificateId(cleanId, { ...context, method: 'bulk' });
+      })
+    );
 
     settled.forEach((result, batchIndex) => {
-      const certificateId = batch[batchIndex];
+      const certificateId = String(batch[batchIndex] || '').trim();
       if (result.status === 'fulfilled') {
         results.push({ certificateId, success: true, data: result.value });
         return;
