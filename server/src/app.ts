@@ -115,6 +115,8 @@ app.use('/api/verification', verificationRateLimiter, verificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
+app.use('/verification', verificationRateLimiter, verificationRoutes);
 app.use('/api/explorer', explorerRoutes);
 app.use('/api/students', studentRoutes);
 
