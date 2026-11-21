@@ -2,7 +2,10 @@
 import type { NextAuthOptions, User as NextAuthUser } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL =
+  typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
+    ? 'https://blockcertify-api.onrender.com/api'
+    : (process.env.NEXT_PUBLIC_API_URL || 'https://blockcertify-api.onrender.com/api');
 
 type AppRole = 'admin' | 'institution' | 'student';
 

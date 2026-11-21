@@ -19,7 +19,7 @@ import {
 } from '@/components/dashboard/dashboard-primitives';
 import { CertificateDetailModal } from '@/components/dashboard/certificate-detail-modal';
 import { Button } from '@/components/ui/button';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, API_URL } from '@/lib/api';
 import { formatDate, formatNumber } from '@/lib/utils';
 import type { Certificate } from '@/types';
 
@@ -157,7 +157,7 @@ export default function InstitutionDashboardPage() {
     // Try backend export first if accessToken is present
     if (session?.user.accessToken) {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/certificates/exports/${type}`, {
+        const response = await fetch(`${API_URL}/certificates/exports/${type}`, {
           headers: { Authorization: `Bearer ${session.user.accessToken}` },
         });
         if (response.ok) {

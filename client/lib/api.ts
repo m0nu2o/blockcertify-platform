@@ -1,6 +1,9 @@
 import seedData from './mongo-seed-data.json';
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_URL =
+  typeof window !== 'undefined' && !window.location.hostname.includes('localhost')
+    ? 'https://blockcertify-api.onrender.com/api'
+    : (process.env.NEXT_PUBLIC_API_URL || 'https://blockcertify-api.onrender.com/api');
 
 // In-memory & local-storage subscription approval state
 const _approvedSubIds = new Set<string>();

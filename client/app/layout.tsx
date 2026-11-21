@@ -17,7 +17,7 @@ const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfa
 export const metadata: Metadata = {
   title: 'BlockCertify',
   description: 'Blockchain-based secure digital certificate issuance and verification platform',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify.pages.dev'),
   manifest: '/manifest.json',
 };
 

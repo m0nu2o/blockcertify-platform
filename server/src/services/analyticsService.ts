@@ -16,15 +16,23 @@ export const getOverviewAnalytics = async () => {
     BlockchainTransaction.countDocuments(),
   ]);
 
-  const monthlyReports = await Certificate.aggregate([
-    {
-      $group: {
-        _id: { $month: '$createdAt' },
-        count: { $sum: 1 },
+  let monthlyReports: Array<{ _id: number; count: number }> = [];
+  try {
+    monthlyReports = await Certificate.aggregate([
+      {
+        $match: { createdAt: { $exists: true, $ne: null } },
       },
-    },
-    { $sort: { '_id': 1 } },
-  ]);
+      {
+        $group: {
+          _id: { $month: { $toDate: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id': 1 } },
+    ]);
+  } catch {
+    monthlyReports = [];
+  }
 
   const institutionRankings = await Institution.find().sort({ 'stats.certificatesIssued': -1 }).limit(10);
 
@@ -37,10 +45,18 @@ export const getOverviewAnalytics = async () => {
 
 export const getAdminAnalytics = async () => {
   const overview = await getOverviewAnalytics();
-  const trafficAnalytics = await Notification.aggregate([
-    { $group: { _id: { $dayOfMonth: '$createdAt' }, count: { $sum: 1 } } },
-    { $sort: { '_id': 1 } },
-  ]);
+  let trafficAnalytics: Array<{ _id: number; count: number }> = [];
+  try {
+    trafficAnalytics = await Notification.aggregate([
+      {
+        $match: { createdAt: { $exists: true, $ne: null } },
+      },
+      { $group: { _id: { $dayOfMonth: { $toDate: '$createdAt' } }, count: { $sum: 1 } } },
+      { $sort: { '_id': 1 } },
+    ]);
+  } catch {
+    trafficAnalytics = [];
+  }
   return { ...overview, trafficAnalytics };
 };
 
