@@ -7,10 +7,14 @@ dotenv.config();
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(5000),
-  CLIENT_URL: z.string().default('http://localhost:3000'),
-  SERVER_URL: z.string().default('http://localhost:5000'),
-  MONGODB_URI: z.string().min(1),
-  JWT_SECRET: z.string().min(16),
+  CLIENT_URL: z.string().default('https://blockcertify.pages.dev'),
+  SERVER_URL: z.string().default('https://blockcertify-api.onrender.com'),
+  MONGODB_URI: z.string().default(
+    process.env.MONGODB_URI ||
+    process.env.NEXT_PUBLIC_MONGODB_URI ||
+    'mongodb+srv://7973monugoswami_db_user:iA8fi44Kwk3M07W0@cluster0.0txnbgv.mongodb.net/blockcertify'
+  ),
+  JWT_SECRET: z.string().min(16).default('c08fc58f15616fa54375cb7f909a5a9ffa91e86c8c28c35f23bab082700effcc'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   SMTP_HOST: z.string().default('smtp.gmail.com'),
   SMTP_PORT: z.coerce.number().default(465),

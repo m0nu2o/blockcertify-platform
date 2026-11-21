@@ -28,6 +28,10 @@ export const app = express();
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 const allowedOrigins = [
   env.CLIENT_URL,
+  'https://blockcertify.pages.dev',
+  'https://blockcertify.7973monugoswami.workers.dev',
+  /^https:\/\/blockcertify[a-z0-9\-]*\.pages\.dev$/,
+  /^https:\/\/blockcertify[a-z0-9\-]*\.workers\.dev$/,
   'http://localhost:3000',
   'http://localhost:3001',
   /^https:\/\/blockcertify[a-z0-9\-]*\.vercel\.app$/,

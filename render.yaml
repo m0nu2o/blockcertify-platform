@@ -13,11 +13,11 @@ services:
       - key: PORT
         value: 10000
       - key: CLIENT_URL
-        sync: false   # Set this in Render dashboard to your Vercel URL
+        value: https://blockcertify.pages.dev
       - key: SERVER_URL
-        sync: false   # Set this in Render dashboard to your Render service URL
+        value: https://blockcertify-api.onrender.com
       - key: MONGODB_URI
-        sync: false   # Set this in Render dashboard: your MongoDB Atlas URI
+        value: mongodb+srv://7973monugoswami_db_user:iA8fi44Kwk3M07W0@cluster0.0txnbgv.mongodb.net/blockcertify
       - key: JWT_SECRET
         generateValue: true
       - key: NEXTAUTH_SECRET
