@@ -48,7 +48,7 @@ export function LoginForm() {
           return;
         }
         toast.success('Welcome back');
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       } catch {
         toast.error('Unexpected error while signing in. Please try again.');
       } finally {
@@ -185,7 +185,7 @@ export function RegisterForm() {
           redirect: false 
         });
         toast.success('Account created successfully');
-        router.push(values.role === 'student' ? '/dashboard/student' : '/dashboard/institution');
+        window.location.href = values.role === 'student' ? '/dashboard/student' : '/dashboard/institution';
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Registration failed');
       } finally {

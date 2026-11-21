@@ -47,6 +47,8 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
+        role: { label: 'Role', type: 'text' },
+        name: { label: 'Name', type: 'text' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -164,17 +166,19 @@ export const authOptions: NextAuthOptions = {
 
         // 3. Dynamic registration and demo user fallback
         if (email && password && password.length >= 6) {
-          const rawRole = (credentials as Record<string, unknown>).role as string | undefined;
+          const rawRole = credentials.role as string | undefined;
           const role: AppRole = rawRole === 'institution' 
             ? 'institution' 
+            : rawRole === 'student'
+            ? 'student'
             : rawRole === 'admin' 
             ? 'admin' 
             : email.includes('admin') 
             ? 'admin' 
-            : (email.includes('institution') || email.includes('registrar') || email.includes('.edu')) 
+            : (email.includes('institution') || email.includes('registrar')) 
             ? 'institution' 
             : 'student';
-          const rawName = ((credentials as Record<string, unknown>).name as string | undefined) || email.split('@')[0];
+          const rawName = credentials.name || email.split('@')[0];
           const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
           return {
             id: `user-${Date.now()}`,
