@@ -8,6 +8,6 @@ const router = Router();
 router.get('/overview', overviewAnalytics);
 router.get('/admin', authenticate, authorize('admin'), adminAnalytics);
 router.get('/institution', authenticate, authorize('institution', 'admin'), institutionAnalytics);
-router.get('/student', authenticate, authorize('student', 'admin'), studentAnalytics);
+router.get('/student', authenticate, authorize('student', 'admin', 'institution'), studentAnalytics);
 
 export default router;

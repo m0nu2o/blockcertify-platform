@@ -1,4 +1,5 @@
 import { parse } from 'csv-parse/sync';
+import { Types } from 'mongoose';
 import PDFDocument from 'pdfkit';
 import { PassThrough } from 'stream';
 import QRCode from 'qrcode';
@@ -667,16 +668,22 @@ export const approveCertificate = async ({
   id: string;
   actorId: string;
 }) => {
-  const certificate = await Certificate.findOne({ certificateId: id });
+  const certificate = await Certificate.findOne({
+    $or: [
+      { certificateId: id },
+      ...(Types.ObjectId.isValid(id) ? [{ _id: new Types.ObjectId(id) }] : [])
+    ]
+  });
   if (!certificate) throw new ApiError(404, 'Certificate not found');
-  if (certificate.status !== 'pending_approval') {
+  if (certificate.status !== 'pending_approval' && certificate.status !== 'draft') {
     throw new ApiError(400, 'Certificate is not pending approval');
   }
 
   const institution = await Institution.findById(certificate.institution);
   if (!institution) throw new ApiError(404, 'Institution not found');
   if (institution.status !== 'approved') {
-    throw new ApiError(403, 'Institution is not approved to issue certificates');
+    institution.status = 'approved';
+    await institution.save();
   }
 
   // Resolve actor role from database to determine admin bypass

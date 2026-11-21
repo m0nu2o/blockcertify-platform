@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { DashboardShell } from '@/components/dashboard-shell';
@@ -16,11 +16,20 @@ import {
   Layers,
   X,
   ExternalLink,
-  Download
+  Download,
+  Sparkles,
+  Award
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import type { Certificate } from '@/types';
+import { 
+  OfficialDiplomaCanvas, 
+  getStoredTemplate, 
+  populateTemplateWithCert, 
+  downloadDiplomaPdf,
+  TemplateConfig 
+} from '@/components/dashboard/diploma-canvas';
 
 type ApiResponse<T> = { success: boolean; message: string; data: T };
 type PaginatedData = { items: Certificate[]; total: number; page: number; limit: number };
@@ -31,6 +40,8 @@ export default function InstitutionApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<Certificate | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const diplomaRef = useRef<HTMLDivElement>(null);
 
   const fetchDrafts = useCallback(async () => {
     if (!session?.user.accessToken) return;
@@ -40,7 +51,7 @@ export default function InstitutionApprovalsPage() {
         '/certificates?status=pending_approval&limit=50',
         { token: session.user.accessToken }
       );
-      setDrafts(response.data.items);
+      setDrafts(response.data.items || []);
     } catch (err) {
       toast.error('Failed to load pending certificate drafts');
       console.error(err);
@@ -70,10 +81,26 @@ export default function InstitutionApprovalsPage() {
         setPreviewItem(null);
       }
     } catch (err) {
-      toast.error('Failed to approve certificate draft');
+      toast.error(err instanceof Error ? err.message : 'Failed to approve certificate draft');
       console.error(err);
     } finally {
       setSubmittingId(null);
+    }
+  };
+
+  const handleDownloadPreviewPdf = async () => {
+    if (!diplomaRef.current || !previewItem) return;
+    setDownloading(true);
+    try {
+      await downloadDiplomaPdf(
+        diplomaRef.current,
+        `BlockCertify_${previewItem.studentName.replace(/\s+/g, '_')}_${previewItem.certificateId}.pdf`
+      );
+      toast.success('Diploma PDF generated and downloaded');
+    } catch {
+      toast.error('Failed to export diploma PDF');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -167,16 +194,16 @@ export default function InstitutionApprovalsPage() {
         {/* PDF Preview Modal Overlay */}
         {previewItem && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <GlassCard className="w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border-border/20 shadow-2xl rounded-3xl">
+            <GlassCard className="w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border-border/20 shadow-2xl rounded-3xl">
               {/* Modal Header */}
               <div className="flex items-center justify-between p-5 border-b border-border/12 bg-card/50">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-2.5 rounded-2xl bg-accent/10 text-accent">
-                    <FileText className="size-5" />
+                    <Award className="size-5" />
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-base font-bold text-foreground truncate">
-                      PDF Preview — {previewItem.studentName}
+                      Official Diploma Preview — {previewItem.studentName}
                     </h3>
                     <p className="text-xs text-foreground/50 font-mono">
                       ID: {previewItem.certificateId} · {previewItem.degree}
@@ -185,34 +212,35 @@ export default function InstitutionApprovalsPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadPreviewPdf}
+                    disabled={downloading}
+                    className="flex items-center gap-1.5 rounded-xl h-9 px-3 text-xs font-semibold"
+                  >
+                    <Download className="size-3.5" />
+                    {downloading ? 'Exporting...' : 'Download PDF'}
+                  </Button>
+
                   {previewItem.ipfsUrl && (
-                    <>
-                      <a
-                        href={previewItem.ipfsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/15 bg-foreground/[0.04] px-3 text-xs font-semibold text-foreground/80 hover:bg-foreground/[0.08]"
-                      >
-                        <ExternalLink className="size-3.5" />
-                        Open Tab
-                      </a>
-                      <a
-                        href={previewItem.ipfsUrl}
-                        download={`${previewItem.certificateId}.pdf`}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/15 bg-foreground/[0.04] px-3 text-xs font-semibold text-foreground/80 hover:bg-foreground/[0.08]"
-                      >
-                        <Download className="size-3.5" />
-                        Download
-                      </a>
-                    </>
+                    <a
+                      href={previewItem.ipfsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/15 bg-foreground/[0.04] px-3 text-xs font-semibold text-foreground/80 hover:bg-foreground/[0.08]"
+                    >
+                      <ExternalLink className="size-3.5" />
+                      Open IPFS
+                    </a>
                   )}
+
                   <Button
                     onClick={() => handleApprove(previewItem.certificateId)}
                     disabled={submittingId === previewItem.certificateId}
                     className="flex items-center gap-1.5 rounded-xl h-9 px-3 text-xs font-semibold"
                   >
                     <CheckCircle className="size-3.5" />
-                    Approve Now
+                    {submittingId === previewItem.certificateId ? 'Anchoring...' : 'Approve & Issue'}
                   </Button>
                   <button
                     onClick={() => setPreviewItem(null)}
@@ -223,20 +251,24 @@ export default function InstitutionApprovalsPage() {
                 </div>
               </div>
 
-              {/* Modal Body / Embedded PDF Viewer */}
-              <div className="flex-1 p-4 bg-black/40 overflow-hidden flex items-center justify-center min-h-[500px]">
-                {previewItem.ipfsUrl ? (
-                  <iframe
-                    src={previewItem.ipfsUrl}
-                    className="w-full h-full min-h-[500px] rounded-2xl border border-border/10 bg-white"
-                    title={`PDF Preview for ${previewItem.studentName}`}
+              {/* Modal Body / Official Diploma Canvas Viewer */}
+              <div className="flex-1 p-4 sm:p-6 bg-[#050811] overflow-y-auto flex items-center justify-center min-h-[500px]">
+                <div className="w-full max-w-[650px] shadow-2xl rounded-2xl overflow-hidden">
+                  <OfficialDiplomaCanvas
+                    ref={diplomaRef}
+                    config={populateTemplateWithCert(getStoredTemplate(), previewItem)}
                   />
-                ) : (
-                  <div className="text-center p-8 text-foreground/50">
-                    <FileText className="size-12 mx-auto mb-2 text-foreground/30" />
-                    <p className="text-sm">PDF preview link unavailable for this draft.</p>
-                  </div>
-                )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3 bg-card/60 border-t border-border/10 flex items-center justify-between text-xs text-foreground/60 px-6">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Sparkles className="size-3.5 text-accent" /> High-Resolution Vector Degree Preview (300 DPI)
+                </span>
+                <span className="font-mono text-[11px] text-warning font-semibold">
+                  Status: Pending Dual-Authorizer Signature
+                </span>
               </div>
             </GlassCard>
           </div>

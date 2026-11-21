@@ -40,7 +40,7 @@ const workspaceNavigation = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, roles: ['admin', 'institution', 'student'] },
   { href: '/dashboard/admin', label: 'Admin Console', icon: Shield, roles: ['admin'] },
   { href: '/dashboard/institution', label: 'Institution Hub', icon: FileBadge2, roles: ['admin', 'institution'] },
-  { href: '/dashboard/student', label: 'Student Profile', icon: UserSquare2, roles: ['admin', 'student'] },
+  { href: '/dashboard/student', label: 'Student Profile', icon: UserSquare2, roles: ['admin', 'institution', 'student'] },
 ];
 
 const toolNavigation = [

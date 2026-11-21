@@ -295,13 +295,13 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
     }));
   };
 
-  const onSubmit = async (event: React.FormEvent) => {
+  const onSubmit = async (event: React.FormEvent, isDraft = false) => {
     event.preventDefault();
     if (userRole === 'student') {
       toast.error('Student accounts are not authorized to issue certificates.');
       return;
     }
-    if (isLimitReached) {
+    if (isLimitReached && !isDraft) {
       toast.error('Limit reached. Please upgrade to issue more certificates.');
       return;
     }
@@ -326,6 +326,9 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
     try {
       const formData = new FormData();
       Object.entries(values).forEach(([key, value]) => formData.append(key, String(value)));
+      if (isDraft) {
+        formData.append('draft', 'true');
+      }
       if (file) {
         formData.append('certificatePdf', file);
       }
@@ -343,7 +346,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
         const randomHex = Math.random().toString(16).substring(2, 10).toUpperCase();
         result = {
           success: true,
-          message: 'Certificate anchored successfully',
+          message: isDraft ? 'Certificate draft queued for approval' : 'Certificate anchored successfully',
           data: {
             certificateId: `BC-${randomHex}`,
           },
@@ -371,11 +374,11 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
             expiryDate: values.expiryDate || undefined,
             grade: values.grade?.trim() || 'First Class with Distinction',
             signatoryTitle: values.approvedBy?.trim() || 'Registrar',
-            approvedBy: values.approvedBy?.trim() || 'Registrar',
-            status: 'valid',
+            approvedBy: isDraft ? undefined : values.approvedBy?.trim() || 'Registrar',
+            status: isDraft ? 'pending_approval' : 'valid',
             verificationCount: 0,
             verificationsCount: 0,
-            transactionHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+            transactionHash: isDraft ? undefined : `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
             metadataHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
             fileHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
             createdAt: new Date().toISOString(),
@@ -391,7 +394,11 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
         } catch {}
       }
 
-      toast.success(`Certificate ${issuedCertId} anchored successfully!`);
+      if (isDraft) {
+        toast.success(`Certificate draft ${issuedCertId} queued for Dual-Authorizer approval in Approvals Queue!`);
+      } else {
+        toast.success(`Certificate ${issuedCertId} anchored successfully!`);
+      }
       setValues(defaultState);
       setSelectedStudent(null);
       setStudentSearch('');
@@ -862,20 +869,32 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
             )}
           </div>
 
-          {/* Submit Action */}
-          <div className="sm:col-span-2 pt-2 border-t border-border/10 flex items-center justify-between">
+          {/* Submit Actions */}
+          <div className="sm:col-span-2 pt-2 border-t border-border/10 flex flex-wrap items-center justify-between gap-3">
             <span className="text-[11px] text-foreground/50 flex items-center gap-1.5 font-mono">
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
               Ethereum + IPFS (SHA-256 anchored)
             </span>
-            <Button 
-              type="submit" 
-              disabled={loading || userRole === 'student'}
-              className="rounded-xl h-9 px-5 text-xs font-bold shadow-glow hover:scale-105 active:scale-95 transition-all"
-            >
-              {loading ? <Sparkles className="size-3.5 animate-spin mr-1.5" /> : null}
-              {loading ? 'Issuing...' : 'Issue Certificate'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                type="button" 
+                variant="outline"
+                disabled={loading || userRole === 'student'}
+                onClick={(e) => onSubmit(e, true)}
+                className="rounded-xl h-9 px-4 text-xs font-semibold border-warning/30 text-warning hover:bg-warning/10 transition-all flex items-center gap-1.5"
+              >
+                <Clock className="size-3.5" />
+                Save Draft (Dual Approval)
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={loading || userRole === 'student'}
+                className="rounded-xl h-9 px-5 text-xs font-bold shadow-glow hover:scale-105 active:scale-95 transition-all"
+              >
+                {loading ? <Sparkles className="size-3.5 animate-spin mr-1.5" /> : null}
+                {loading ? 'Issuing...' : 'Issue Certificate'}
+              </Button>
+            </div>
           </div>
 
         </fieldset>

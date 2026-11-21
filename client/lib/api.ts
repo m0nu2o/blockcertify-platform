@@ -165,6 +165,9 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
   }
 
   if (p === '/certificates' || p === '/certificates/recent') {
+    // Check if filtering for pending approvals
+    const isPendingApproval = path.includes('status=pending_approval');
+
     // Map to prevent duplicate certificate IDs while putting newly issued first
     const certMap = new Map<string, any>();
     for (const c of localCerts) {
@@ -177,6 +180,38 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
     }
     const combinedCerts = Array.from(certMap.values());
 
+    if (isPendingApproval) {
+      const pendingDrafts = combinedCerts.filter(
+        (c) => c.status === 'pending_approval' || c.status === 'draft'
+      );
+      if (pendingDrafts.length === 0) {
+        pendingDrafts.push({
+          _id: 'draft-sample-01',
+          certificateId: 'BC-DRAFT01',
+          studentName: 'Alex Morgan',
+          studentId: 'STU-9901',
+          email: 'alex.morgan@university.edu',
+          degree: 'Master of Science in Artificial Intelligence',
+          course: 'Advanced Deep Learning and Neural Computing',
+          department: 'Computer Science & AI',
+          institutionName: 'Future University',
+          issueDate: new Date().toISOString(),
+          status: 'pending_approval',
+          grade: 'Distinction (Summa Cum Laude)',
+          signatoryTitle: 'University Registrar & Chancellor',
+        });
+      }
+      return {
+        success: true,
+        data: {
+          items: pendingDrafts,
+          total: pendingDrafts.length,
+          page: 1,
+          limit: 50,
+        },
+      } as unknown as T;
+    }
+
     return {
       success: true,
       data: {
@@ -184,6 +219,32 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
         total: combinedCerts.length,
         page: 1,
         limit: 50,
+      },
+    } as unknown as T;
+  }
+
+  if (p.includes('/certificates/') && p.endsWith('/approve') && method === 'POST') {
+    const certId = p.split('/')[2];
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = JSON.parse(localStorage.getItem('blockcertify-local-certificates') || '[]');
+        const idx = stored.findIndex((x: any) => (x.certificateId || '').toUpperCase() === (certId || '').toUpperCase() || x._id === certId);
+        if (idx >= 0) {
+          stored[idx].status = 'issued';
+          stored[idx].blockchainStatus = 'confirmed';
+          stored[idx].approvedBy = 'Registrar';
+          localStorage.setItem('blockcertify-local-certificates', JSON.stringify(stored));
+        }
+      } catch {}
+    }
+    return {
+      success: true,
+      message: 'Certificate approved and anchored on-chain successfully',
+      data: {
+        certificateId: certId,
+        status: 'issued',
+        blockchainStatus: 'confirmed',
+        transactionHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
       },
     } as unknown as T;
   }

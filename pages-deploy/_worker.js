@@ -23,6 +23,10 @@ export default {
     try {
       const response = await fetch(url.toString(), init);
       const resHeaders = new Headers(response.headers);
+      const loc = resHeaders.get("Location") || resHeaders.get("location");
+      if (loc && loc.includes("blockcertify.7973monugoswami.workers.dev")) {
+        resHeaders.set("Location", loc.replace("blockcertify.7973monugoswami.workers.dev", "blockcertify.pages.dev"));
+      }
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,

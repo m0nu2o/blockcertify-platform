@@ -16,7 +16,8 @@ const isAuthorizedForRoute = (userRole: Role | undefined, requiredRole: Role) =>
   if (!userRole) return false;
   if (requiredRole === 'admin') return userRole === 'admin';
   if (requiredRole === 'institution') return userRole === 'institution' || userRole === 'admin';
-  return userRole === 'student' || userRole === 'admin';
+  if (requiredRole === 'student') return true; // Accessible by student, institution, and admin
+  return false;
 };
 
 export default withAuth(
