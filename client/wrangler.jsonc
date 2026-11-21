@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "blockcertify",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://blockcertify.pages.dev",
+    "NEXTAUTH_URL": "https://blockcertify.pages.dev",
+    "NEXTAUTH_SECRET": "3b42e02ad5757011d30b7fef11dc2c458d58ac6735e9a1857487c6d63439ed44"
+  }
+}
