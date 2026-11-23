@@ -112,7 +112,7 @@ export function Hero() {
 
           <motion.h1
             variants={itemVariants}
-            className="text-balance text-5xl font-black tracking-tight text-foreground sm:text-7xl leading-[1.05]"
+            className="text-balance text-3xl xs:text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-foreground leading-[1.1] sm:leading-[1.05]"
           >
             {t('hero.title.part1')}{' '}
             <span className="bg-gradient-to-r from-accent via-blue-400 to-cyan-400 bg-clip-text text-transparent">
@@ -122,19 +122,19 @@ export function Hero() {
 
           <motion.p
             variants={itemVariants}
-            className="max-w-xl text-base sm:text-lg leading-relaxed text-foreground/70 font-medium"
+            className="max-w-xl text-sm sm:text-lg leading-relaxed text-foreground/70 font-medium"
           >
             {t('hero.description')}
           </motion.p>
 
           <motion.div
             variants={itemVariants}
-            className="flex flex-wrap items-center gap-4 pt-4"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4"
           >
-            <Button onClick={handleStartIssuing} size="lg" className="rounded-full shadow-glow font-semibold px-8 gap-2 hover:gap-3 transition-all h-12 focus-visible:ring-2 focus-visible:ring-accent">
+            <Button onClick={handleStartIssuing} size="lg" className="w-full sm:w-auto rounded-full shadow-glow font-semibold px-8 gap-2 hover:gap-3 transition-all h-12 focus-visible:ring-2 focus-visible:ring-accent justify-center">
               {t('hero.cta.start')} <ArrowRight className="size-4" />
             </Button>
-            <Button asChild size="lg" variant="secondary" className="rounded-full font-semibold px-8 h-12 focus-visible:ring-2 focus-visible:ring-accent bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30 shadow-sm">
+            <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto rounded-full font-semibold px-8 h-12 focus-visible:ring-2 focus-visible:ring-accent bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30 shadow-sm justify-center">
               <Link href="/verify">
                 {t('hero.cta.verify')} <ShieldCheck className="size-4 ml-1.5 text-accent" />
               </Link>
@@ -213,11 +213,11 @@ export function Hero() {
                   <span>Blockchain Issuance Pipeline</span>
                   <span className="text-accent text-[11px] font-semibold">4 Steps Verifiable</span>
                 </div>
-                <div className="grid gap-3 grid-cols-4">
+                <div className="grid gap-1.5 sm:gap-3 grid-cols-4">
                   {['PDF Upload', 'SHA-256', 'IPFS Pin', 'Ethereum'].map((step, index) => (
-                    <div key={step} className="rounded-lg border border-border/10 bg-foreground/[0.02] p-2.5 text-center">
-                      <div className="mx-auto mb-1.5 grid size-6 place-items-center rounded-full bg-accent/15 text-accent text-xs font-bold">{index + 1}</div>
-                      <div className="text-[10px] font-bold text-foreground leading-tight">{step}</div>
+                    <div key={step} className="rounded-lg border border-border/10 bg-foreground/[0.02] p-1.5 sm:p-2.5 text-center">
+                      <div className="mx-auto mb-1 grid size-5 sm:size-6 place-items-center rounded-full bg-accent/15 text-accent text-[10px] sm:text-xs font-bold">{index + 1}</div>
+                      <div className="text-[9px] sm:text-[10px] font-bold text-foreground leading-tight truncate">{step}</div>
                     </div>
                   ))}
                 </div>

@@ -153,7 +153,7 @@ export default function PricingPage() {
             <div className="inline-flex rounded-full border border-accent/40 bg-accent/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-accent mb-5">
               Pricing Plans
             </div>
-            <h1 className="text-5xl font-extrabold tracking-tight text-foreground sm:text-6xl">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground">
               Pricing for trusted credential operations
             </h1>
             <p className="mt-6 text-lg text-foreground/80 leading-relaxed max-w-2xl mx-auto">
@@ -216,7 +216,7 @@ export default function PricingPage() {
               return (
                 <GlassCard 
                   key={tier.name}
-                  className={`flex flex-col p-8 rounded-[32px] transition-all duration-300 border-2 ${
+                  className={`flex flex-col p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] transition-all duration-300 border-2 ${
                     isCurrent 
                       ? 'border-emerald-500/80 bg-emerald-500/[0.02] shadow-glow-success' 
                       : isPending

@@ -214,7 +214,7 @@ export default function DashboardPage() {
     <DashboardShell title="Platform Overview">
       <div className="grid gap-6 xl:grid-cols-[1.25fr,0.75fr] items-stretch">
         <div className="flex flex-col justify-center">
-          <GlassCard className="relative overflow-hidden mb-8 p-8 border-border/10 shadow-glass-lg group">
+          <GlassCard className="relative overflow-hidden mb-8 p-5 sm:p-8 border-border/10 shadow-glass-lg group">
             {/* Ambient Lighting Effect */}
             <div className="absolute -top-40 -right-40 w-96 h-96 bg-accent/20 rounded-full blur-[100px] pointer-events-none group-hover:bg-accent/30 transition-all duration-700 ease-in-out group-hover:scale-110" />
             <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-purple-500/20 transition-all duration-700 ease-in-out" />
@@ -227,8 +227,8 @@ export default function DashboardPage() {
                 </span>
                 Unified operations snapshot
               </div>
-              <h2 className="mt-5 text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl drop-shadow-sm">
-                Track issuance and <br/> trust signals.
+              <h2 className="mt-5 text-2xl xs:text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground drop-shadow-sm">
+                Track issuance and <br className="hidden sm:inline" /> trust signals.
               </h2>
               <p className="mt-4 max-w-lg text-base leading-relaxed text-foreground/70 font-medium">
                 The network has anchored <strong className="text-foreground">{formatNumber(data.analytics.stats.certificatesIssued)} credentials</strong> across <strong className="text-foreground">{formatNumber(data.analytics.stats.institutions)} institutions</strong>, establishing a verifiable public record.

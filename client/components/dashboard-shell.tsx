@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Blocks, 
   ChartBarBig, 
@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
+  Menu,
   X
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
@@ -91,8 +92,13 @@ export function DashboardShell({ title, children }: { title: string; children: R
   const [tier, setTier] = useState<string>(session?.user?.subscriptionTier || 'free');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarQuery, setSidebarQuery] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const userId = session?.user?.id;
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (session?.user?.subscriptionTier) {
@@ -139,16 +145,16 @@ export function DashboardShell({ title, children }: { title: string; children: R
       <Suspense fallback={null}>
         <AccessDeniedToast />
       </Suspense>
-      <div className="min-h-screen px-4 py-6">
+      <div className="min-h-screen px-3 sm:px-6 py-4 sm:py-6">
         <div className={cn("mx-auto grid max-w-7xl gap-6 transition-[grid-template-columns] duration-300 ease-in-out", isCollapsed ? "lg:grid-cols-[88px,1fr]" : "lg:grid-cols-[280px,1fr]")}>
           
-          {/* Sidebar Panel */}
+          {/* Desktop Sidebar Panel */}
           <motion.aside
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className={cn(
-              "relative z-50 flex flex-col rounded-[32px] border border-white/10 bg-card/40 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-[40px] transition-all duration-300 before:absolute before:inset-0 before:-z-10 before:rounded-[32px] before:bg-gradient-to-b before:from-accent/20 before:to-transparent lg:sticky lg:top-6 lg:h-[calc(100dvh-48px)] lg:min-h-0",
+              "hidden lg:flex relative z-40 flex-col rounded-[32px] border border-white/10 bg-card/40 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-[40px] transition-all duration-300 before:absolute before:inset-0 before:-z-10 before:rounded-[32px] before:bg-gradient-to-b before:from-accent/20 before:to-transparent lg:sticky lg:top-6 lg:h-[calc(100dvh-48px)] lg:min-h-0",
               isCollapsed && "items-center"
             )}
           >
@@ -375,50 +381,79 @@ export function DashboardShell({ title, children }: { title: string; children: R
           </motion.aside>
 
           {/* Main Content Area */}
-          <main className="space-y-6 min-w-0">
+          <main className="space-y-4 sm:space-y-6 min-w-0">
+            {/* Mobile Top Header Bar (< lg) */}
+            <div className="lg:hidden flex items-center justify-between rounded-[22px] border border-white/10 bg-card/60 p-3 sm:p-4 shadow-glass backdrop-blur-2xl">
+              <Link href="/dashboard" className="flex items-center gap-2.5">
+                <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-accent to-accent/60 shadow-[0_0_15px_rgba(var(--accent),0.5)] text-white shrink-0">
+                  <Blocks className="size-4" />
+                </div>
+                <div>
+                  <div className="text-base font-bold text-foreground leading-none">BlockCertify</div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-accent mt-0.5">Control Console</div>
+                </div>
+              </Link>
+
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {userRole && (
+                  <Badge className="border-accent/30 bg-accent/10 text-accent font-semibold text-[10px] px-2 py-0.5 hidden sm:inline-flex">
+                    {roleLabels[userRole] || userRole}
+                  </Badge>
+                )}
+                <NotificationDropdown />
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="grid size-9 place-items-center rounded-xl border border-border/20 bg-foreground/[0.04] text-foreground hover:bg-accent/10 transition"
+                  aria-label="Open navigation menu"
+                >
+                  <Menu className="size-5" />
+                </button>
+              </div>
+            </div>
+
             <motion.div
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35 }}
-              className="flex flex-col gap-4 rounded-[30px] border border-border/12 bg-card/80 p-5 shadow-glass backdrop-blur-2xl md:flex-row md:items-center md:justify-between"
+              className="flex flex-col gap-4 rounded-[22px] sm:rounded-[30px] border border-border/12 bg-card/80 p-4 sm:p-5 shadow-glass backdrop-blur-2xl md:flex-row md:items-center md:justify-between"
             >
               <div>
-                <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-                <p className="text-sm text-foreground/55">Real-time trust, analytics, and verification operations.</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">{title}</h1>
+                <p className="text-xs sm:text-sm text-foreground/55">Real-time trust, analytics, and verification operations.</p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  const query = formData.get('query');
-                  if (query) {
-                    router.push(`/verify?id=${query}`);
-                  }
-                }} 
-                className="relative group"
-              >
-                <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-foreground/40" />
-                <Input name="query" className="pl-10 pr-10" placeholder="Search by Certificate ID..." />
-                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent hover:text-white transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus-within:opacity-100">
-                  <ArrowRight className="size-3.5" />
-                </button>
-              </form>
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center w-full md:w-auto">
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const query = formData.get('query');
+                    if (query) {
+                      router.push(`/verify?id=${query}`);
+                    }
+                  }} 
+                  className="relative group w-full sm:w-auto"
+                >
+                  <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-foreground/40" />
+                  <Input name="query" className="pl-9 pr-9 h-10 text-xs sm:text-sm w-full sm:w-60" placeholder="Search by Certificate ID..." />
+                  <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-lg bg-accent/10 text-accent hover:bg-accent hover:text-white transition-colors" aria-label="Search ID">
+                    <ArrowRight className="size-3.5" />
+                  </button>
+                </form>
                 {account ? (
                   <Button
                     variant="outline"
-                    className="flex items-center gap-2 border-emerald-500/30 bg-emerald-500/5 text-emerald-400 font-mono hover:bg-emerald-500/10 hover:text-emerald-300 rounded-2xl h-10 px-4"
+                    className="flex items-center justify-center gap-2 border-emerald-500/30 bg-emerald-500/5 text-emerald-400 font-mono hover:bg-emerald-500/10 hover:text-emerald-300 rounded-2xl h-10 px-4 w-full sm:w-auto"
                     onClick={disconnectWallet}
                     aria-label={`Disconnect wallet ${account}`}
                   >
                     <div className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                    {/* {account.slice(0, 6)}...{account.slice(-4)} */}
                     Connected
                   </Button>
                 ) : (
                   <Button
                     variant="secondary"
-                    className="flex items-center gap-2 rounded-2xl border border-accent/25 hover:bg-accent/10 hover:text-accent font-semibold h-10 px-4"
+                    className="flex items-center justify-center gap-2 rounded-2xl border border-accent/25 hover:bg-accent/10 hover:text-accent font-semibold h-10 px-4 w-full sm:w-auto"
                     onClick={connectWallet}
                     disabled={isConnecting}
                     aria-label="Connect Web3 Wallet"
@@ -427,7 +462,9 @@ export function DashboardShell({ title, children }: { title: string; children: R
                     {isConnecting ? 'Connecting...' : 'Connect Wallet'}
                   </Button>
                 )}
-                <NotificationDropdown />
+                <div className="hidden lg:block">
+                  <NotificationDropdown />
+                </div>
               </div>
             </motion.div>
             <motion.div initial={{ opacity: 0.92, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, delay: 0.02 }} className="space-y-6">
@@ -436,6 +473,178 @@ export function DashboardShell({ title, children }: { title: string; children: R
           </main>
         </div>
       </div>
+
+      {/* Mobile Drawer Overlay & Sheet */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div
+              key="mobile-drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md lg:hidden"
+            />
+            <motion.aside
+              key="mobile-drawer-sheet"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-y-0 left-0 z-50 w-[85%] max-w-[340px] flex flex-col bg-card/95 border-r border-border/20 shadow-2xl backdrop-blur-3xl p-5 overflow-y-auto overscroll-contain lg:hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-border/10">
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5">
+                  <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-accent to-accent/60 text-white shrink-0">
+                    <Blocks className="size-4" />
+                  </div>
+                  <div>
+                    <div className="text-base font-bold text-foreground">BlockCertify</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-accent">Control Console</div>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="grid size-8 place-items-center rounded-lg text-foreground/50 hover:bg-foreground/[0.06] hover:text-foreground transition"
+                  aria-label="Close menu"
+                >
+                  <X className="size-4.5" />
+                </button>
+              </div>
+
+              {/* Search Inside Drawer */}
+              <div className="my-4 relative">
+                <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-foreground/40" />
+                <input
+                  type="text"
+                  value={sidebarQuery}
+                  onChange={(e) => setSidebarQuery(e.target.value)}
+                  placeholder="Filter menu..."
+                  className="w-full h-9 rounded-xl border border-border/15 bg-foreground/[0.03] pl-9 pr-3 text-xs placeholder:text-foreground/40 outline-none focus:border-accent/50 text-foreground"
+                />
+              </div>
+
+              {/* Workspace Navigation */}
+              {filteredWorkspaceNav.length > 0 && (
+                <div className="space-y-1 mb-5">
+                  <div className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest px-2 mb-2">
+                    Workspace
+                  </div>
+                  {filteredWorkspaceNav.map((item) => {
+                    const isActive = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition',
+                          isActive ? 'bg-accent/15 text-accent font-semibold border border-accent/25' : 'text-foreground/70 hover:bg-foreground/[0.04]'
+                        )}
+                      >
+                        <item.icon className="size-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Platform Utilities */}
+              {filteredToolNav.length > 0 && (
+                <div className="space-y-1 mb-5">
+                  <div className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest px-2 mb-2">
+                    Platform Utilities
+                  </div>
+                  {filteredToolNav.map((item) => {
+                    const isActive = pathname.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition',
+                          isActive ? 'bg-accent/15 text-accent font-semibold border border-accent/25' : 'text-foreground/70 hover:bg-foreground/[0.04]'
+                        )}
+                      >
+                        <item.icon className="size-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Navigation Links */}
+              <div className="space-y-1 mb-5">
+                <div className="text-[10px] font-bold text-foreground/40 uppercase tracking-widest px-2 mb-2">
+                  Navigation
+                </div>
+                <Link
+                  href="/dashboard/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition',
+                    pathname === '/dashboard/profile' ? 'bg-accent/15 text-accent font-semibold border border-accent/25' : 'text-foreground/70 hover:bg-foreground/[0.04]'
+                  )}
+                >
+                  <User className="size-4 shrink-0" />
+                  <span>My Profile</span>
+                </Link>
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-foreground/70 hover:bg-foreground/[0.04] transition"
+                >
+                  <ArrowLeft className="size-4 shrink-0" />
+                  <span>Exit to Website</span>
+                </Link>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-auto pt-4 border-t border-border/10 space-y-3">
+                <div className="flex items-center gap-3 p-2 rounded-xl bg-foreground/[0.03] border border-border/10">
+                  <div className="size-9 rounded-full bg-accent/15 border border-accent/25 grid place-items-center text-accent overflow-hidden shrink-0">
+                    {profilePic || session?.user?.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profilePic || session!.user!.image!} alt="Profile" className="size-full object-cover" />
+                    ) : (
+                      <User className="size-4" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-foreground truncate flex items-center gap-1">
+                      {session?.user?.name || 'User'}
+                      {tier !== 'free' && <Crown className="size-3 text-warning shrink-0 fill-warning" />}
+                    </div>
+                    <div className="text-[10px] text-foreground/50 truncate">{session?.user?.email || 'Guest'}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 h-9 rounded-xl bg-foreground/[0.04] border border-border/12 hover:bg-danger/10 hover:text-danger text-xs gap-1.5"
+                    onClick={async () => {
+                      setMobileMenuOpen(false);
+                      await signOut({ callbackUrl: '/login' });
+                    }}
+                  >
+                    <LogOut className="size-3.5" /> Sign Out
+                  </Button>
+                  <div className="shrink-0">
+                    <SettingsDropdown align="end" direction="up" />
+                  </div>
+                </div>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -382,14 +382,14 @@ export function VerificationWidget() {
     <div className="grid gap-6 lg:grid-cols-[0.9fr,1.1fr]">
       <GlassCard>
         <div className="mb-5 text-xl font-semibold">Verify a certificate</div>
-        <div className="grid grid-cols-2 gap-2 relative">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 relative">
           {tabs.map((tab) => {
             const isActive = mode === tab.key;
             return (
               <button 
                 key={tab.key} 
                 onClick={() => handleTabChange(tab.key)} 
-                className="relative rounded-2xl p-4 text-left text-sm transition duration-200 border border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] active:scale-98 overflow-hidden group focus-visible:ring-2 focus-visible:ring-accent"
+                className="relative rounded-2xl p-3 sm:p-4 text-left text-xs sm:text-sm transition duration-200 border border-border/10 bg-foreground/[0.02] hover:bg-foreground/[0.05] active:scale-98 overflow-hidden group focus-visible:ring-2 focus-visible:ring-accent last:col-span-2 sm:last:col-span-1"
               >
                 {isActive && (
                   <motion.span 
@@ -399,7 +399,7 @@ export function VerificationWidget() {
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-start">
-                  <tab.icon className={`mb-3 size-5 transition-colors duration-200 ${isActive ? 'text-accent' : 'text-foreground/40 group-hover:text-foreground'}`} />
+                  <tab.icon className={`mb-2 sm:mb-3 size-4 sm:size-5 transition-colors duration-200 ${isActive ? 'text-accent' : 'text-foreground/40 group-hover:text-foreground'}`} />
                   <span className={`font-semibold transition-colors duration-200 ${isActive ? 'text-foreground' : 'text-foreground/70 group-hover:text-foreground'}`}>{tab.label}</span>
                 </div>
               </button>
@@ -775,12 +775,17 @@ export function VerificationWidget() {
               </div>
 
               {verifiedTemplateConfig && (
-                <div className="rounded-2xl p-2 sm:p-3 bg-[#050811] border border-border/20 shadow-2xl flex items-center justify-center">
-                  <div className="w-full max-w-[560px]">
-                    <OfficialDiplomaCanvas 
-                      ref={diplomaRef}
-                      config={verifiedTemplateConfig}
-                    />
+                <div className="rounded-2xl p-2 sm:p-3 bg-[#050811] border border-border/20 shadow-2xl flex flex-col items-center justify-center">
+                  <div className="w-full overflow-x-auto scrollbar-hide -mx-1 px-1">
+                    <div className="min-w-[520px] sm:min-w-0 w-full max-w-[560px] mx-auto">
+                      <OfficialDiplomaCanvas 
+                        ref={diplomaRef}
+                        config={verifiedTemplateConfig}
+                      />
+                    </div>
+                  </div>
+                  <div className="sm:hidden text-center text-[10px] text-foreground/50 pt-1">
+                    Swipe horizontally to view full diploma
                   </div>
                 </div>
               )}

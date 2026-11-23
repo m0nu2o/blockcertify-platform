@@ -424,7 +424,7 @@ export function Navbar() {
                 </div>
               ) : status === 'authenticated' ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <Link href="/dashboard"><Button variant="secondary" className="w-full rounded-xl">Dashboard</Button></Link>
+                  <Link href="/dashboard" onClick={() => setOpen(false)}><Button variant="secondary" className="w-full rounded-xl">Dashboard</Button></Link>
                   <Button className="w-full rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive" onClick={async () => { setOpen(false); await signOut({ callbackUrl: '/login' }); }}>Sign Out</Button>
                 </div>
               ) : (

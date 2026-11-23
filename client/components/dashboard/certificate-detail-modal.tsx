@@ -157,7 +157,9 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
                   : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'
               }`}
             >
-              <Award className="size-3.5" /> Official Master Diploma (Designed Layout)
+              <Award className="size-3.5 shrink-0" />
+              <span className="hidden sm:inline">Official Master Diploma (Designed Layout)</span>
+              <span className="sm:hidden">Diploma</span>
             </button>
             <button
               type="button"
@@ -168,7 +170,9 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
                   : 'text-foreground/60 hover:text-foreground hover:bg-foreground/[0.03]'
               }`}
             >
-              <ShieldCheck className="size-3.5" /> Blockchain Registry & Details
+              <ShieldCheck className="size-3.5 shrink-0" />
+              <span className="hidden sm:inline">Blockchain Registry & Details</span>
+              <span className="sm:hidden">Audit Proof</span>
             </button>
           </div>
 
@@ -186,12 +190,17 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
               </div>
 
               {/* Live Diploma Presentation Stage */}
-              <div className="rounded-2xl p-2.5 sm:p-4 bg-[#050811] border border-border/20 shadow-2xl flex items-center justify-center">
-                <div className="w-full max-w-[620px]">
-                  <OfficialDiplomaCanvas 
-                    ref={diplomaRef}
-                    config={templateConfig} 
-                  />
+              <div className="rounded-2xl p-2.5 sm:p-4 bg-[#050811] border border-border/20 shadow-2xl flex flex-col items-center justify-center">
+                <div className="w-full overflow-x-auto scrollbar-hide -mx-1 px-1">
+                  <div className="min-w-[560px] sm:min-w-0 w-full max-w-[620px] mx-auto">
+                    <OfficialDiplomaCanvas 
+                      ref={diplomaRef}
+                      config={templateConfig} 
+                    />
+                  </div>
+                </div>
+                <div className="sm:hidden text-center text-[10px] text-foreground/50 pt-1">
+                  Swipe horizontally to view full diploma
                 </div>
               </div>
 
@@ -270,8 +279,8 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
           </div>
 
           {/* Action footer */}
-          <div className="sticky bottom-0 border-t border-border/10 bg-card/95 backdrop-blur-xl px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
-            <div className="flex-1 min-w-[200px]">
+          <div className="sticky bottom-0 border-t border-border/10 bg-card/95 backdrop-blur-xl px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
+            <div className="flex-1 w-full sm:min-w-[200px]">
               {activeTab === 'diploma' ? (
                 <Button
                   className="w-full gap-2 bg-accent text-accent-foreground font-bold shadow-md hover:brightness-110"
@@ -292,21 +301,21 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
               {certificate.status !== 'revoked' && (
-                <a href={linkedInUrl} target="_blank" rel="noopener noreferrer">
-                  <Button variant="secondary" size="sm" className="gap-1.5 border-accent/25 hover:bg-accent/10 hover:text-accent font-medium">
-                    <Share2 className="size-3.5 shrink-0" /> Add to LinkedIn
+                <a href={linkedInUrl} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
+                  <Button variant="secondary" size="sm" className="w-full sm:w-auto gap-1.5 border-accent/25 hover:bg-accent/10 hover:text-accent font-medium">
+                    <Share2 className="size-3.5 shrink-0" /> <span className="hidden sm:inline">Add to </span>LinkedIn
                   </Button>
                 </a>
               )}
-              <Link href={`/verify?id=${certificate.certificateId}`} target="_blank">
-                <Button variant="outline" size="sm" className="gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium">
-                  <BadgeCheck className="size-3.5 text-emerald-400 shrink-0" /> Verify Credential
+              <Link href={`/verify?id=${certificate.certificateId}`} target="_blank" className="flex-1 sm:flex-initial">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto gap-1.5 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 font-medium">
+                  <BadgeCheck className="size-3.5 text-emerald-400 shrink-0" /> Verify
                 </Button>
               </Link>
-              <a href={`/certificate/${certificate.certificateId}`} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="sm" className="gap-1.5 border-border/20 font-medium">
+              <a href={`/certificate/${certificate.certificateId}`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto gap-1.5 border-border/20 font-medium">
                   <ShieldCheck className="size-3.5 text-accent shrink-0" /> Public Page
                 </Button>
               </a>

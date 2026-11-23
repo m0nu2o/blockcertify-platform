@@ -377,18 +377,18 @@ export default function CertificatePublicPage() {
             Public Decentralized Credential Verification Registry
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <Button
             size="sm"
             onClick={() => void downloadPdf()}
             disabled={downloading}
-            className="gap-1.5 bg-accent text-accent-foreground font-bold text-xs shadow-md"
+            className="w-full sm:w-auto gap-1.5 bg-accent text-accent-foreground font-bold text-xs shadow-md"
           >
             <Download className="size-4" />
             {downloading ? 'Exporting...' : 'Download Official PDF'}
           </Button>
-          <Link href="/verify">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs border-border/20">
+          <Link href="/verify" className="w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto gap-1.5 text-xs border-border/20">
               <QrCode className="size-3.5 text-accent" /> Scan Another QR
             </Button>
           </Link>
@@ -461,11 +461,16 @@ export default function CertificatePublicPage() {
               </span>
             </div>
 
-            <div className="w-full max-w-4xl">
-              <OfficialDiplomaCanvas 
-                ref={diplomaRef}
-                config={templateConfig} 
-              />
+            <div className="w-full overflow-x-auto scrollbar-hide -mx-1 px-1">
+              <div className="min-w-[620px] sm:min-w-0 w-full max-w-4xl mx-auto">
+                <OfficialDiplomaCanvas 
+                  ref={diplomaRef}
+                  config={templateConfig} 
+                />
+              </div>
+            </div>
+            <div className="sm:hidden flex items-center justify-center gap-1.5 text-[11px] text-foreground/50 pt-1">
+              <span>👉 Swipe horizontally to view full master certificate</span>
             </div>
           </div>
         )}

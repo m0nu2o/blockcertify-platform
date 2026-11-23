@@ -6,7 +6,7 @@ export function GlassCard({ className, children, onClick }: { className?: string
     <div
       onClick={onClick}
       className={cn(
-        'relative overflow-hidden rounded-[28px] border border-border/5 bg-foreground/[0.02] p-6 shadow-glass backdrop-blur-3xl ring-1 ring-inset ring-foreground/[0.02] transition-all duration-300',
+        'relative overflow-hidden rounded-[22px] sm:rounded-[28px] border border-border/5 bg-foreground/[0.02] p-4 sm:p-6 shadow-glass backdrop-blur-3xl ring-1 ring-inset ring-foreground/[0.02] transition-all duration-300',
         isClickable && 'cursor-pointer hover:-translate-y-1 hover:bg-foreground/[0.03] hover:shadow-2xl hover:border-accent/20',
         className
       )}

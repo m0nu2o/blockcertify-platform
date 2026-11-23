@@ -805,7 +805,7 @@ export const BlockchainAuditReceipt = forwardRef<HTMLDivElement, {
             <div className="h-px bg-[#d4af37]/30 flex-1 ml-2" />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {/* Student Full Name */}
             <div className="bg-[#0c142b]/90 border border-slate-800 rounded-xl p-3 space-y-0.5">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
@@ -873,7 +873,7 @@ export const BlockchainAuditReceipt = forwardRef<HTMLDivElement, {
             </div>
 
             {cert.grade && (
-              <div className="col-span-2 bg-[#0c142b]/90 border border-emerald-500/30 rounded-xl p-2.5 px-3 flex items-center justify-between">
+              <div className="col-span-1 sm:col-span-2 bg-[#0c142b]/90 border border-emerald-500/30 rounded-xl p-2.5 px-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                 <span className="text-[10.5px] font-semibold text-slate-300 uppercase tracking-wider">
                   Academic Honours & Distinction:
                 </span>
@@ -894,7 +894,7 @@ export const BlockchainAuditReceipt = forwardRef<HTMLDivElement, {
           </div>
 
           <div className="bg-[#0c142b]/90 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block mb-0.5">
                   Distributed Ledger Network

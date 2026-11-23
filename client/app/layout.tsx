@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Space_Grotesk, Outfit, Plus_Jakarta_Sans, Bricolage_Grotesque, Syne, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
@@ -14,6 +14,12 @@ const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-br
 const syne = Syne({ subsets: ['latin'], variable: '--font-syne' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   title: 'BlockCertify',
   description: 'Blockchain-based secure digital certificate issuance and verification platform',
@@ -24,7 +30,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`min-h-screen flex flex-col ${inter.variable} ${spaceGrotesk.variable} ${outfit.variable} ${plusJakarta.variable} ${bricolage.variable} ${syne.variable} ${playfair.variable}`}>
+      <body className={`min-h-screen flex flex-col overflow-x-hidden w-full max-w-full ${inter.variable} ${spaceGrotesk.variable} ${outfit.variable} ${plusJakarta.variable} ${bricolage.variable} ${syne.variable} ${playfair.variable}`}>
         <LanguageProvider>
           <FontProvider>
             <LenisProvider>
