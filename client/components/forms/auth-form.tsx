@@ -158,7 +158,7 @@ export function RegisterForm() {
                 name: values.institutionName?.trim() || values.name.trim(),
                 email: values.email.trim().toLowerCase(),
                 website: 'https://blockcertify.io',
-                status: 'approved',
+                status: 'pending',
                 stats: { certificatesIssued: 0, certificatesRevoked: 0, studentsManaged: 0 },
                 createdAt: new Date().toISOString(),
               };

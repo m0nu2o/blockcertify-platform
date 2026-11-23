@@ -56,7 +56,7 @@ interface StudentRecord {
 }
 
 export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => void }) {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const [values, setValues] = useState(defaultState);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,12 +67,14 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
   const [studentsList, setStudentsList] = useState<StudentRecord[]>([]);
   const [searchingStudents, setSearchingStudents] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
+  const [liveStatus, setLiveStatus] = useState<string | undefined>(session?.user?.institutionStatus);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const accessToken = session?.user?.accessToken;
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
-  const isUnapprovedInstitution = session?.user?.role === 'institution' && session.user.institutionStatus !== 'approved';
+  const currentInstitutionStatus = liveStatus || session?.user?.institutionStatus;
+  const isUnapprovedInstitution = userRole === 'institution' && currentInstitutionStatus !== 'approved';
 
   const fetchStudents = useCallback(async (q: string) => {
     setSearchingStudents(true);
@@ -172,6 +174,10 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
   }, [studentMode, fetchStudents]);
 
   useEffect(() => {
+    if (session?.user?.institutionStatus) {
+      setLiveStatus(session.user.institutionStatus);
+    }
+
     if (session?.user) {
       const instId = session.user.institutionId || (session.user.role === 'admin' ? 'inst-system-admin' : '');
       const instName = session.user.name || 'System Admin';
@@ -183,7 +189,7 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
     }
 
     if (accessToken) {
-      apiFetch<{ data?: { name?: string; institution?: { _id: string; name: string } } }>('/auth/me', {
+      apiFetch<{ data?: { name?: string; institution?: { _id: string; name: string; status?: string } } }>('/auth/me', {
         token: accessToken,
       })
         .then((res) => {
@@ -193,11 +199,17 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
               institutionId: res.data!.institution!._id || current.institutionId,
               institutionName: res.data!.institution!.name || current.institutionName,
             }));
+            if (res.data.institution.status) {
+              setLiveStatus(res.data.institution.status);
+              if (res.data.institution.status !== session?.user?.institutionStatus && typeof update === 'function') {
+                void update({ institutionStatus: res.data.institution.status });
+              }
+            }
           }
         })
         .catch(() => {});
     }
-  }, [session?.user, accessToken]);
+  }, [session?.user, accessToken, update]);
 
   const loadCertificateCount = useCallback(() => {
     if (!accessToken) return;

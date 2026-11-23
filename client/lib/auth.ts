@@ -80,7 +80,7 @@ export const authOptions: NextAuthOptions = {
                 role: result.data.user.role,
                 accessToken: result.data.token,
                 institutionId: result.data.user.institution?._id,
-                institutionStatus: result.data.user.institution?.status,
+                institutionStatus: result.data.user.institution?.status || (result.data.user.role === 'institution' ? 'pending' : undefined),
                 subscriptionTier: result.data.user.subscription?.tier || 'free',
               } satisfies AuthenticatedUser;
             }
@@ -180,14 +180,33 @@ export const authOptions: NextAuthOptions = {
             : 'student';
           const rawName = credentials.name || email.split('@')[0];
           const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+          let instStatus: InstitutionStatus | undefined = undefined;
+          let instId: string | undefined = undefined;
+
+          if (role === 'institution') {
+            instStatus = 'pending';
+            instId = `inst-${Date.now()}`;
+            if (typeof window !== 'undefined') {
+              try {
+                const storedInsts = JSON.parse(localStorage.getItem('blockcertify-registered-institutions') || '[]');
+                const matched = storedInsts.find((i: any) => i.email?.toLowerCase() === email || i.name?.toLowerCase() === name.toLowerCase());
+                if (matched) {
+                  if (matched.status) instStatus = matched.status;
+                  if (matched._id) instId = matched._id;
+                }
+              } catch {}
+            }
+          }
+
           return {
             id: `user-${Date.now()}`,
             name,
             email,
             role,
             accessToken: `demo-${role}-token-${Date.now()}`,
-            institutionId: role === 'institution' ? `inst-${Date.now()}` : undefined,
-            institutionStatus: 'approved',
+            institutionId: instId,
+            institutionStatus: instStatus,
             subscriptionTier: role === 'admin' ? 'Enterprise' : role === 'institution' ? 'Starter' : 'free',
           } satisfies AuthenticatedUser;
         }
@@ -212,6 +231,9 @@ export const authOptions: NextAuthOptions = {
       if (trigger === 'update' && session) {
         if (session.subscriptionTier) {
           token.subscriptionTier = session.subscriptionTier;
+        }
+        if (session.institutionStatus) {
+          token.institutionStatus = session.institutionStatus;
         }
       }
 

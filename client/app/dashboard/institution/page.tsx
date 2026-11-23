@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Activity, Building2, ChevronRight, Copy, Check, GraduationCap, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Activity, Building2, ChevronRight, Copy, Check, GraduationCap, ShieldCheck, ShieldOff, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { DashboardShell } from '@/components/dashboard-shell';
 import { CertificateIssuanceForm } from '@/components/forms/certificate-issuance-form';
@@ -20,7 +20,7 @@ import {
 import { CertificateDetailModal } from '@/components/dashboard/certificate-detail-modal';
 import { Button } from '@/components/ui/button';
 import { apiFetch, API_URL } from '@/lib/api';
-import { formatDate, formatNumber } from '@/lib/utils';
+import { formatDate, formatNumber, cn } from '@/lib/utils';
 import type { Certificate } from '@/types';
 
 type ApiResponse<T> = { success: boolean; message: string; data: T };
@@ -54,7 +54,7 @@ type InstitutionDashboardData = {
 
 export default function InstitutionDashboardPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const [data, setData] = useState<InstitutionDashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +64,10 @@ export default function InstitutionDashboardPage() {
   const [selectedForRevoke, setSelectedForRevoke] = useState<Set<string>>(new Set());
   const [revokingBulk, setRevokingBulk] = useState(false);
   const [showAllCertificates, setShowAllCertificates] = useState(false);
+  const [liveInstitutionStatus, setLiveInstitutionStatus] = useState<string | undefined>(
+    session?.user?.institutionStatus
+  );
+  const [checkingApproval, setCheckingApproval] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role === 'student') {
@@ -276,9 +280,34 @@ export default function InstitutionDashboardPage() {
     }
   };
 
+  const checkLiveApproval = useCallback(async () => {
+    if (!session?.user?.accessToken) return;
+    setCheckingApproval(true);
+    try {
+      const res = await apiFetch<{ data?: { institution?: { status?: string } } }>('/auth/me', {
+        token: session.user.accessToken,
+      });
+      const freshStatus = res?.data?.institution?.status;
+      if (freshStatus) {
+        setLiveInstitutionStatus(freshStatus);
+        if (freshStatus !== session.user.institutionStatus && typeof update === 'function') {
+          await update({ institutionStatus: freshStatus });
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setCheckingApproval(false);
+    }
+  }, [session?.user?.accessToken, session?.user?.institutionStatus, update]);
+
   useEffect(() => {
+    if (session?.user?.institutionStatus) {
+      setLiveInstitutionStatus(session.user.institutionStatus);
+    }
     if (status === 'authenticated') {
       void loadDashboard();
+      void checkLiveApproval();
       return;
     }
 
@@ -286,19 +315,42 @@ export default function InstitutionDashboardPage() {
       setLoading(false);
       setError('You need to sign in to load the institution dashboard.');
     }
-  }, [loadDashboard, status]);
+  }, [loadDashboard, status, session?.user?.institutionStatus, checkLiveApproval]);
 
-  const institutionStatus = session?.user?.institutionStatus;
+  const institutionStatus = liveInstitutionStatus || session?.user?.institutionStatus;
 
   return (
     <DashboardShell title="Institution Dashboard">
       {institutionStatus && institutionStatus !== 'approved' ? (
-        <div className="rounded-2xl border border-warning/30 bg-warning/10 px-5 py-4 text-sm text-warning">
-          {institutionStatus === 'pending'
-            ? 'Your institution is pending admin approval. You can browse your dashboard, but certificate issuance is disabled until an administrator approves your account.'
-            : institutionStatus === 'suspended'
-              ? 'Your institution has been suspended. Certificate issuance is disabled. Contact platform support for details.'
-              : 'Your institution registration was not approved. Certificate issuance is disabled.'}
+        <div className="rounded-2xl border border-warning/30 bg-warning/10 px-5 py-4 text-sm text-warning flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <div className="font-semibold text-warning">
+              {institutionStatus === 'pending'
+                ? 'Account Pending Admin Approval'
+                : institutionStatus === 'suspended'
+                  ? 'Institution Account Suspended'
+                  : 'Institution Account Under Review'}
+            </div>
+            <p className="mt-1 text-xs text-warning/80">
+              {institutionStatus === 'pending'
+                ? 'Your institution is pending administrator approval before certificates can be issued. Once an administrator approves your account, issuance features will unlock automatically.'
+                : institutionStatus === 'suspended'
+                  ? 'Your institution has been suspended. Certificate issuance is disabled. Contact platform support for details.'
+                  : 'Your institution registration was not approved. Certificate issuance is disabled.'}
+            </p>
+          </div>
+          {institutionStatus === 'pending' && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={checkingApproval}
+              onClick={() => void checkLiveApproval()}
+              className="border-warning/40 text-warning hover:bg-warning/20 shrink-0 text-xs"
+            >
+              <RefreshCw className={cn('size-3.5 mr-1.5', checkingApproval && 'animate-spin')} />
+              {checkingApproval ? 'Checking...' : 'Check Status'}
+            </Button>
+          )}
         </div>
       ) : null}
       <div className="grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">

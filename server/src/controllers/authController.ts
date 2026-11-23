@@ -44,10 +44,19 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     subscription: { tier: 'free', updatedAt: new Date() },
   });
 
-  if (body.role === 'institution' && body.institutionName) {
+  if (body.role === 'institution') {
+    const instName = body.institutionName?.trim() || `${body.name.trim()} Institution`;
+    const baseSlug = instName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'inst';
+    let slug = baseSlug;
+    let counter = 1;
+    while (await Institution.findOne({ slug })) {
+      slug = `${baseSlug}-${counter}-${Date.now().toString().slice(-4)}`;
+      counter++;
+    }
+
     const institution = await Institution.create({
-      name: body.institutionName,
-      slug: body.institutionName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      name: instName,
+      slug,
       email: body.email,
       contactPerson: body.name,
       user: user._id,
@@ -111,6 +120,20 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   }
   if (!match) throw new ApiError(401, 'Invalid credentials');
 
+  // Self-heal institution link if missing
+  if (user.role === 'institution' && !user.institution) {
+    const inst = await Institution.findOne({ $or: [{ user: user._id }, { email: user.email }] });
+    if (inst) {
+      user.institution = inst._id;
+      if (!inst.user) {
+        inst.user = user._id;
+        await inst.save();
+      }
+      await user.save();
+      await user.populate('institution');
+    }
+  }
+
   user.lastLoginAt = new Date();
   await user.save();
 
@@ -137,8 +160,22 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
-  const user = await User.findById(req.user?._id).select('-password').populate('institution student');
+  let user = await User.findById(req.user?._id).select('-password').populate('institution student');
   if (!user) throw new ApiError(404, 'User not found');
+
+  if (user.role === 'institution' && !user.institution) {
+    const inst = await Institution.findOne({ $or: [{ user: user._id }, { email: user.email }] });
+    if (inst) {
+      user.institution = inst._id;
+      if (!inst.user) {
+        inst.user = user._id;
+        await inst.save();
+      }
+      await user.save();
+      user = await User.findById(user._id).select('-password').populate('institution student');
+    }
+  }
+
   return sendSuccess(res, user, 'Current user');
 });
 

@@ -488,10 +488,67 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
     } as unknown as T;
   }
 
-  if (p.startsWith('/admin/institutions/') && method === 'PATCH') {
+  if (p.startsWith('/admin/institutions/') && (method === 'PATCH' || method === 'POST')) {
+    const parts = p.split('/');
+    const instId = parts[3];
+    const action = parts[4]; // 'approve' or 'suspend'
+    const newStatus = action === 'approve' ? 'approved' : action === 'suspend' ? 'suspended' : 'pending';
+
+    let updatedInst: any = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = JSON.parse(localStorage.getItem('blockcertify-registered-institutions') || '[]');
+        const idx = stored.findIndex((i: any) => i._id === instId || i.id === instId || i.email === instId);
+        if (idx >= 0) {
+          stored[idx].status = newStatus;
+          if (newStatus === 'approved') {
+            stored[idx].approvedAt = new Date().toISOString();
+            stored[idx].suspendedAt = undefined;
+            stored[idx].suspensionReason = undefined;
+          } else if (newStatus === 'suspended') {
+            stored[idx].suspendedAt = new Date().toISOString();
+          }
+          updatedInst = stored[idx];
+          localStorage.setItem('blockcertify-registered-institutions', JSON.stringify(stored));
+        }
+        window.dispatchEvent(new Event('storage'));
+      } catch {}
+    }
+
     return {
       success: true,
-      message: 'Institution updated successfully.',
+      message: `Institution ${newStatus} successfully.`,
+      data: updatedInst || { _id: instId, status: newStatus },
+    } as unknown as T;
+  }
+
+  if (p === '/auth/me' && method === 'GET') {
+    const matchedInst = localInstitutions[0] || null;
+    const currentUser = localUsers[0] || {
+      _id: 'local-user-id',
+      name: 'Registrar',
+      email: 'registrar@institution.edu',
+      role: 'institution',
+    };
+
+    return {
+      success: true,
+      message: 'Current user',
+      data: {
+        _id: currentUser._id,
+        id: currentUser._id,
+        name: currentUser.name,
+        email: currentUser.email,
+        role: currentUser.role || 'institution',
+        institution: matchedInst
+          ? {
+              _id: matchedInst._id,
+              name: matchedInst.name,
+              email: matchedInst.email,
+              status: matchedInst.status || 'pending',
+            }
+          : undefined,
+      },
     } as unknown as T;
   }
 
@@ -791,7 +848,7 @@ function getDemoFallback<T>(path: string, method = 'GET', body?: unknown): T | n
             name: parsed.institutionName?.trim() || parsed.name?.trim() || 'New Institution',
             email: parsed.email?.trim().toLowerCase() || 'institution@example.com',
             website: parsed.website || 'https://blockcertify.io',
-            status: 'approved',
+            status: 'pending',
             stats: { certificatesIssued: 0, certificatesRevoked: 0, studentsManaged: 0 },
             createdAt: new Date().toISOString(),
           };

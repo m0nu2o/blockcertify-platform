@@ -10,6 +10,7 @@ import { User, Mail, Shield, KeyRound, Building, CheckCircle2, Camera, Trash2, Q
 import { toast } from 'sonner';
 import { getSubscriptionTier, SubscriptionTier } from '@/lib/subscription';
 import { getAvatar, setAvatar, removeAvatar } from '@/lib/db';
+import { apiFetch } from '@/lib/api';
 
 const roleLabels = {
   admin: 'Platform Administrator',
@@ -24,14 +25,37 @@ const roleDescriptions = {
 } as const;
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [tier, setTier] = useState<SubscriptionTier>('free');
   const [copied, setCopied] = useState(false);
+  const [liveInstitutionStatus, setLiveInstitutionStatus] = useState<string | undefined>(
+    session?.user?.institutionStatus
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const userId = session?.user?.id;
   const storageKey = userId ? `blockcertify-profile-pic-${userId}` : null;
+
+  useEffect(() => {
+    if (session?.user?.institutionStatus) {
+      setLiveInstitutionStatus(session.user.institutionStatus);
+    }
+    if (session?.user?.accessToken) {
+      apiFetch<{ data?: { institution?: { status?: string } } }>('/auth/me', {
+        token: session.user.accessToken,
+      })
+        .then((res) => {
+          if (res?.data?.institution?.status) {
+            setLiveInstitutionStatus(res.data.institution.status);
+            if (res.data.institution.status !== session.user.institutionStatus && typeof update === 'function') {
+              void update({ institutionStatus: res.data.institution.status });
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [session?.user, update]);
 
   useEffect(() => {
     if (storageKey && userId) {
@@ -125,7 +149,8 @@ export default function ProfilePage() {
     );
   }
 
-  const { name, email, role, id, institutionStatus } = session.user;
+  const { name, email, role, id } = session.user;
+  const institutionStatus = liveInstitutionStatus || session.user.institutionStatus;
 
   return (
     <DashboardShell title="My Profile">

@@ -135,6 +135,22 @@ export const approveInstitution = asyncHandler(async (req: Request, res: Respons
   institution.status = 'approved';
   institution.approvedAt = new Date();
   institution.approvedBy = new Types.ObjectId(req.user!._id);
+  institution.suspendedAt = undefined;
+  institution.suspensionReason = undefined;
+
+  // Ensure associated user is active and linked to this institution
+  if (institution.user) {
+    await User.findByIdAndUpdate(institution.user, { isActive: true, institution: institution._id });
+  } else {
+    const user = await User.findOne({ email: institution.email });
+    if (user) {
+      user.institution = institution._id;
+      user.isActive = true;
+      await user.save();
+      institution.user = user._id;
+    }
+  }
+
   await institution.save();
 
   await createAuditLog({
@@ -147,7 +163,7 @@ export const approveInstitution = asyncHandler(async (req: Request, res: Respons
     metadata: { institutionName: institution.name },
   });
 
-  return sendSuccess(res, institution, 'Institution approved');
+  return sendSuccess(res, institution, 'Institution approved successfully');
 });
 
 const suspendInstitutionSchema = z.object({ reason: z.string().min(5) });
