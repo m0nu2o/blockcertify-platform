@@ -14,15 +14,15 @@ import { sendEmail } from '../services/emailService.js';
 import { ApiError } from '../utils/ApiError.js';
 
 const publicRegisterSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: z.string().trim().toLowerCase().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.enum(['institution', 'student']),
-  institutionName: z.string().optional(),
-  studentId: z.string().optional(),
+  institutionName: z.string().trim().optional(),
+  studentId: z.string().trim().optional(),
 });
 
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) });
+const loginSchema = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8) });
 const FORGOT_PASSWORD_MESSAGE = 'If that email exists, a reset link has been sent.';
 
 export const register = asyncHandler(async (req: Request, res: Response) => {

@@ -56,25 +56,33 @@ export const authOptions: NextAuthOptions = {
         const email = credentials.email.trim().toLowerCase();
         const password = credentials.password;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const attemptLogin = async (): Promise<Response> => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 25000);
+          try {
+            return await fetch(`${API_URL}/auth/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password }),
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(timeoutId);
+          }
+        };
 
         let response: Response;
         try {
-          response = await fetch(`${API_URL}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-            signal: controller.signal,
-          });
+          response = await attemptLogin();
+          if ([502, 503, 504].includes(response.status)) {
+            await new Promise((r) => setTimeout(r, 1200));
+            response = await attemptLogin();
+          }
         } catch (err) {
-          clearTimeout(timeoutId);
           if (err instanceof Error && err.name === 'AbortError') {
             throw new Error('Authentication server timed out. Please try again.');
           }
           throw new Error('Unable to reach authentication server. Please try again later.');
-        } finally {
-          clearTimeout(timeoutId);
         }
 
         const rawText = await response.text();
@@ -86,6 +94,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!response.ok) {
+          if (response.status >= 500) {
+            throw new Error(parsed?.message || 'Authentication server is temporarily unavailable. Please try again in a few seconds.');
+          }
+          if (response.status === 429) {
+            throw new Error(parsed?.message || 'Too many login attempts. Please wait a moment and try again.');
+          }
           throw new Error(parsed?.message || 'Invalid email or password');
         }
 

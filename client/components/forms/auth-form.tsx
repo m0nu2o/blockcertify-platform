@@ -14,8 +14,16 @@ import { Input } from '@/components/ui/input';
 import { GlassCard } from '@/components/ui/glass-card';
 import { apiFetch } from '@/lib/api';
 
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8) });
-const registerSchema = loginSchema.extend({ name: z.string().min(2), role: z.enum(['institution', 'student']), institutionName: z.string().optional(), studentId: z.string().optional() });
+const loginSchema = z.object({
+  email: z.string().trim().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+const registerSchema = loginSchema.extend({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  role: z.enum(['institution', 'student']),
+  institutionName: z.string().optional(),
+  studentId: z.string().optional(),
+});
 
 type LoginValues = z.infer<typeof loginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
@@ -103,14 +111,18 @@ export function RegisterForm() {
   const role = form.watch('role');
   const { errors } = form.formState;
 
+  useEffect(() => {
+    form.setValue('role', requestedRole);
+  }, [requestedRole, form]);
+
   const onSubmit = form.handleSubmit(
     async (values) => {
       setLoading(true);
       try {
-        await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(values) });
+        await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(values), timeoutMs: 25000 });
 
         const signInResult = await signIn('credentials', {
-          email: values.email,
+          email: values.email.trim().toLowerCase(),
           password: values.password,
           redirect: false,
         });

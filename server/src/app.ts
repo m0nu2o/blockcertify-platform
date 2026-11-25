@@ -24,6 +24,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 
 export const app = express();
+app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 const allowedOrigins = [
@@ -56,7 +57,14 @@ app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(mongoSanitize());
 app.use(hpp());
-app.use(xssClean());
+const xssMiddleware = xssClean();
+app.use((req, res, next) => {
+  // Never mutate raw passwords on auth routes (xss-clean escapes characters like < and >)
+  if (req.path.startsWith('/api/auth/')) {
+    return next();
+  }
+  return xssMiddleware(req, res, next);
+});
 app.use(morgan('dev'));
 
 // Serves certificate files/metadata that were stored locally because

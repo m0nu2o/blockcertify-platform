@@ -70,17 +70,16 @@ export default function HomePage() {
   };
 
   const handleStartTrial = () => {
-    if (status === 'loading') return;
-    if (!session) {
-      router.push('/register?role=institution');
-      return;
-    }
-    if (session.user.role === 'student') {
+    if (status === 'authenticated' && session?.user?.role === 'student') {
       toast.error('Student accounts are not authorized to issue credentials. Redirecting to student profile.');
       router.push('/dashboard/student');
       return;
     }
-    router.push('/dashboard/institution');
+    if (status === 'authenticated') {
+      router.push('/dashboard/institution');
+      return;
+    }
+    router.push('/register?role=institution');
   };
 
   return (

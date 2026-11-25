@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import gsap from 'gsap';
 import Link from 'next/link';
@@ -19,11 +19,9 @@ export function Hero() {
   const glowRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
   const [studentModalOpen, setStudentModalOpen] = useState(false);
+  const [pendingStart, setPendingStart] = useState(false);
 
-  const handleStartIssuing = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (status === 'loading') return;
-
+  const navigateForIssuing = useCallback(() => {
     if (!session) {
       router.push('/register?role=institution');
       return;
@@ -35,6 +33,22 @@ export function Hero() {
     }
 
     router.push('/dashboard/institution');
+  }, [session, router]);
+
+  useEffect(() => {
+    if (pendingStart && status !== 'loading') {
+      setPendingStart(false);
+      navigateForIssuing();
+    }
+  }, [pendingStart, status, navigateForIssuing]);
+
+  const handleStartIssuing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (status === 'loading') {
+      setPendingStart(true);
+      return;
+    }
+    navigateForIssuing();
   };
 
   const containerVariants = {
@@ -131,8 +145,8 @@ export function Hero() {
             variants={itemVariants}
             className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4"
           >
-            <Button onClick={handleStartIssuing} size="lg" className="w-full sm:w-auto rounded-full shadow-glow font-semibold px-8 gap-2 hover:gap-3 transition-all h-12 focus-visible:ring-2 focus-visible:ring-accent justify-center">
-              {t('hero.cta.start')} <ArrowRight className="size-4" />
+            <Button type="button" onClick={handleStartIssuing} disabled={pendingStart} size="lg" className="w-full sm:w-auto rounded-full shadow-glow font-semibold px-8 gap-2 hover:gap-3 transition-all h-12 focus-visible:ring-2 focus-visible:ring-accent justify-center">
+              {pendingStart ? 'Opening...' : t('hero.cta.start')} <ArrowRight className="size-4" />
             </Button>
             <Button asChild size="lg" variant="secondary" className="w-full sm:w-auto rounded-full font-semibold px-8 h-12 focus-visible:ring-2 focus-visible:ring-accent bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30 shadow-sm justify-center">
               <Link href="/verify">
@@ -228,7 +242,7 @@ export function Hero() {
       </motion.div>
       <AnimatePresence>
         {studentModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+          <div key="student-restriction-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
