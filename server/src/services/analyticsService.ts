@@ -63,7 +63,7 @@ export const getAdminAnalytics = async () => {
 export const getInstitutionAnalytics = async (institutionId?: string) => {
   const query: Record<string, unknown> = {};
   if (institutionId && institutionId !== 'undefined' && mongoose.Types.ObjectId.isValid(institutionId)) {
-    query.institution = institutionId;
+    query.$expr = { $eq: [{ $toString: '$institution' }, institutionId] };
   }
 
   const [issued, revoked, recentCertificates, students] = await Promise.all([

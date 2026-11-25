@@ -85,7 +85,8 @@ export const buildCertificateAccessQuery = async (user: RequestUser): Promise<Re
   }
 
   if (scope.role === 'institution') {
-    return { institution: scope.institutionId };
+    // Match both BSON ObjectId and legacy string-typed institution references safely
+    return { $expr: { $eq: [{ $toString: '$institution' }, scope.institutionId] } };
   }
 
   if (scope.studentId && scope.email) {
