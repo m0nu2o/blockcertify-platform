@@ -686,6 +686,46 @@ export const approveCertificate = async ({
     await institution.save();
   }
 
+  // Backfill required relational/metadata fields for legacy pending drafts
+  if (!certificate.graduationYear) {
+    certificate.graduationYear = certificate.issueDate
+      ? new Date(certificate.issueDate).getFullYear()
+      : new Date().getFullYear();
+  }
+  if (!certificate.student) {
+    let studentDoc = await Student.findOne({
+      institution: institution._id,
+      $or: [
+        { studentId: certificate.studentId },
+        ...(certificate.email ? [{ email: certificate.email.toLowerCase() }] : []),
+      ],
+    });
+    if (!studentDoc) {
+      studentDoc = await Student.create({
+        institution: institution._id,
+        studentId: certificate.studentId || `STU-${certificate.certificateId}`,
+        name: certificate.studentName,
+        email: (certificate.email || `${certificate.studentId || certificate.certificateId}@student.local`).toLowerCase(),
+        degree: certificate.degree,
+        course: certificate.course,
+        department: certificate.department,
+        graduationYear: certificate.graduationYear,
+      });
+    }
+    certificate.student = studentDoc._id;
+  }
+  if (!certificate.fileHash) {
+    certificate.fileHash = sha256(`${certificate.certificateId}:${certificate.studentId}:${certificate.course}`);
+  }
+  if (!certificate.metadataHash) {
+    certificate.metadataHash = sha256(JSON.stringify({
+      certificateId: certificate.certificateId,
+      studentName: certificate.studentName,
+      degree: certificate.degree,
+      course: certificate.course,
+    }));
+  }
+
   // Resolve actor role from database to determine admin bypass
   let actorRole: string | undefined;
   try {
@@ -741,25 +781,29 @@ export const approveCertificate = async ({
     });
     await certificate.save();
 
-    await BlockchainTransaction.create({
-      certificate: certificate._id,
-      action: 'issue',
-      network: 'ethereum',
-      chainId: certificate.chainId,
-      contractAddress: process.env.ETH_CONTRACT_ADDRESS,
-      transactionHash: chainResult.transactionHash,
-      blockNumber: chainResult.blockNumber,
-      gasUsed: chainResult.gasUsed,
-      walletAddress: chainResult.walletAddress,
-      status: 'confirmed',
-      submittedAt: certificate.submittedAt,
-      confirmedAt: certificate.confirmedAt,
-      payload: {
-        certificateId: certificate.certificateId,
-        metadataHash: certificate.metadataHash,
-        fileHash: certificate.fileHash,
+    await BlockchainTransaction.findOneAndUpdate(
+      { certificate: certificate._id, action: 'issue' },
+      {
+        certificate: certificate._id,
+        action: 'issue',
+        network: 'ethereum',
+        chainId: certificate.chainId,
+        contractAddress: process.env.ETH_CONTRACT_ADDRESS,
+        transactionHash: chainResult.transactionHash,
+        blockNumber: chainResult.blockNumber,
+        gasUsed: chainResult.gasUsed,
+        walletAddress: chainResult.walletAddress,
+        status: 'confirmed',
+        submittedAt: certificate.submittedAt,
+        confirmedAt: certificate.confirmedAt,
+        payload: {
+          certificateId: certificate.certificateId,
+          metadataHash: certificate.metadataHash,
+          fileHash: certificate.fileHash,
+        },
       },
-    });
+      { upsert: true, new: true }
+    );
 
     if (!institution.stats) {
       institution.stats = { certificatesIssued: 0, certificatesRevoked: 0, studentsManaged: 0 };

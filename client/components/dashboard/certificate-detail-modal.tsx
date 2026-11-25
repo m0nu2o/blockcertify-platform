@@ -158,8 +158,8 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
               }`}
             >
               <Award className="size-3.5 shrink-0" />
-              <span className="hidden sm:inline">Official Master Diploma (Designed Layout)</span>
-              <span className="sm:hidden">Diploma</span>
+              <span className="hidden sm:inline">Certificate</span>
+              <span className="sm:hidden">Certificate</span>
             </button>
             <button
               type="button"
@@ -182,7 +182,7 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
             <div className={activeTab === 'diploma' ? 'space-y-3' : 'hidden'}>
               <div className="flex items-center justify-between text-xs text-foreground/60">
                 <span className="flex items-center gap-1.5 font-semibold">
-                  <Sparkles className="size-3.5 text-accent" /> Authentic University Degree Diploma (A4 Landscape 300+ DPI)
+                  <Sparkles className="size-3.5 text-accent" /> Verified Certificate (A4 Landscape 300+ DPI)
                 </span>
                 <span className="font-mono text-[11px] text-accent font-semibold hidden sm:inline">
                   Verified On-Chain
@@ -200,7 +200,7 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
                   </div>
                 </div>
                 <div className="sm:hidden text-center text-[10px] text-foreground/50 pt-1">
-                  Swipe horizontally to view full diploma
+                  Swipe horizontally to view full certificate
                 </div>
               </div>
 
@@ -288,7 +288,7 @@ export function CertificateDetailModal({ certificate, onClose }: CertificateDeta
                   disabled={downloading}
                 >
                   <Download className="size-4 shrink-0" />
-                  {downloading ? 'Exporting Master Diploma...' : 'Download Official Diploma PDF'}
+                  {downloading ? 'Exporting Certificate PDF...' : 'Download Certificate PDF'}
                 </Button>
               ) : (
                 <Button

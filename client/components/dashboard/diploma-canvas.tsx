@@ -620,7 +620,7 @@ OfficialDiplomaCanvas.displayName = 'OfficialDiplomaCanvas';
 
 export async function downloadDiplomaPdf(
   element: HTMLElement, 
-  filename = 'Official_Certificate_Diploma.pdf'
+  filename = 'Certificate.pdf'
 ) {
   try {
     const canvas = await html2canvas(element, {
@@ -660,11 +660,11 @@ export async function downloadDiplomaPdf(
 
     pdf.addImage(imgData, 'PNG', margin, offsetY, pdfWidth, pdfHeight);
     pdf.save(filename);
-    toast.success('High-resolution Official Diploma PDF downloaded successfully!');
+    toast.success('Certificate PDF downloaded successfully!');
     return true;
   } catch (err) {
-    console.error('Failed to generate diploma PDF:', err);
-    toast.error('Failed to generate Diploma PDF. Please try again.');
+    console.error('Failed to generate Certificate PDF:', err);
+    toast.error('Failed to generate Certificate PDF. Please try again.');
     return false;
   }
 }

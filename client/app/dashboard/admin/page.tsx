@@ -343,7 +343,7 @@ export default function AdminDashboardPage() {
         : [];
       setBulkVerifyResults(results);
       const validCount = results.filter((r) => r.success && (r.data?.valid ?? (r as any).valid)).length;
-      toast.success(`Verified ${results.length} certificates (${validCount} valid).`);
+      toast.success(`Verified ${results.length} ${results.length === 1 ? 'certificate' : 'certificates'} (${validCount} valid).`);
     } catch (verifyError) {
       toast.error(verifyError instanceof Error ? verifyError.message : 'Bulk verification failed');
     } finally {

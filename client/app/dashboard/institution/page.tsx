@@ -64,6 +64,8 @@ export default function InstitutionDashboardPage() {
   const [selectedForRevoke, setSelectedForRevoke] = useState<Set<string>>(new Set());
   const [revokingBulk, setRevokingBulk] = useState(false);
   const [showAllCertificates, setShowAllCertificates] = useState(false);
+  const [certSearch, setCertSearch] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
   const [liveInstitutionStatus, setLiveInstitutionStatus] = useState<string | undefined>(
     session?.user?.institutionStatus
   );
@@ -84,7 +86,7 @@ export default function InstitutionDashboardPage() {
     try {
       const [analyticsResponse, certificatesResponse, notificationsResponse] = await Promise.all([
         apiFetch<ApiResponse<InstitutionAnalytics>>('/analytics/institution', { token: session.user.accessToken }),
-        apiFetch<ApiResponse<CertificateListResponse>>('/certificates?limit=25', { token: session.user.accessToken }),
+        apiFetch<ApiResponse<CertificateListResponse>>('/certificates?limit=100', { token: session.user.accessToken }),
         apiFetch<ApiResponse<NotificationItem[]>>('/notifications', { token: session.user.accessToken }),
       ]);
 
@@ -146,6 +148,35 @@ export default function InstitutionDashboardPage() {
       setRevokingBulk(false);
     }
   }, [session?.user.accessToken, loadDashboard, selectedForRevoke]);
+
+  const loadMoreCertificates = useCallback(async () => {
+    if (!session?.user.accessToken || !data) return;
+    const nextPage = (data.certificates.page || 1) + 1;
+    setLoadingMore(true);
+    try {
+      const res = await apiFetch<ApiResponse<CertificateListResponse>>(
+        `/certificates?page=${nextPage}&limit=${data.certificates.limit || 100}`,
+        { token: session.user.accessToken }
+      );
+      const nextItems = res?.data?.items || [];
+      setData((prev) => {
+        if (!prev) return prev;
+        const seen = new Set(prev.certificates.items.map((c) => c.certificateId));
+        const merged = [...prev.certificates.items, ...nextItems.filter((c) => !seen.has(c.certificateId))];
+        return {
+          ...prev,
+          certificates: {
+            ...res.data,
+            items: merged,
+          },
+        };
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to load older certificates');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [session?.user.accessToken, data]);
 
   const copyCertId = async (certId: string) => {
     await navigator.clipboard.writeText(certId);
@@ -458,19 +489,43 @@ export default function InstitutionDashboardPage() {
                 title="No institution certificates yet"
                 description="Use the issuance form to create your first blockchain-backed certificate for a student."
               />
-            ) : (
-              <div>
-                <div className="grid gap-3 text-sm text-foreground/70">
-                  {(showAllCertificates ? data.certificates.items : data.certificates.items.slice(0, 5)).map((item) => (
+            ) : (() => {
+              const query = certSearch.trim().toLowerCase();
+              const filteredItems = query
+                ? data.certificates.items.filter((item) =>
+                    [item.studentName, item.certificateId, item.course, item.degree]
+                      .filter(Boolean)
+                      .some((v) => String(v).toLowerCase().includes(query))
+                  )
+                : data.certificates.items;
+              const visibleItems = showAllCertificates || query ? filteredItems : filteredItems.slice(0, 10);
+
+              return (
+              <div className="min-w-0">
+                <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <input
+                    type="search"
+                    value={certSearch}
+                    onChange={(e) => setCertSearch(e.target.value)}
+                    placeholder="Filter by student, course, or Certificate ID..."
+                    aria-label="Filter recent certificates"
+                    className="h-9 w-full sm:max-w-xs rounded-xl border border-border/15 bg-foreground/[0.03] px-3 text-xs text-foreground placeholder:text-foreground/45 outline-none transition focus:border-accent/60"
+                  />
+                  <span className="text-xs text-foreground/55 shrink-0">
+                    Showing {visibleItems.length} of {data.certificates.total || data.certificates.items.length}
+                  </span>
+                </div>
+                <div className="grid gap-3 text-sm text-foreground/70 min-w-0">
+                  {visibleItems.map((item) => (
                     <div
                       key={item.certificateId}
-                      className="group rounded-2xl border border-border/12 bg-foreground/[0.03] p-5 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:border-accent/30 hover:bg-accent/5 transition-all duration-200"
+                      className="group rounded-2xl border border-border/12 bg-foreground/[0.03] p-4 sm:p-5 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl hover:border-accent/30 hover:bg-accent/5 transition-all duration-200 min-w-0 overflow-hidden"
                       onClick={() => setSelectedCert(item)}
                     >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div className="flex items-start gap-3">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between min-w-0">
+                        <div className="flex items-start gap-3 min-w-0">
                           {item.status !== 'revoked' && (
-                            <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                            <div className="pt-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                               <input 
                                 type="checkbox" 
                                 checked={selectedForRevoke.has(item.certificateId)}
@@ -484,30 +539,30 @@ export default function InstitutionDashboardPage() {
                               />
                             </div>
                           )}
-                          <div>
-                            <div className="font-semibold text-foreground flex items-center gap-2">
-                              <span>{item.studentName}</span>
-                              <ChevronRight className="size-4 text-foreground/40 group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-foreground flex items-center gap-2 min-w-0">
+                              <span className="truncate">{item.studentName}</span>
+                              <ChevronRight className="size-4 shrink-0 text-foreground/40 group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
                             </div>
                             <div className="mt-1 flex items-center gap-2 text-foreground/60">
                               <span className="font-mono text-xs">{item.certificateId}</span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); void copyCertId(item.certificateId); }}
-                                className="text-foreground/40 hover:text-accent transition"
+                                className="text-foreground/40 hover:text-accent transition shrink-0"
                                 aria-label="Copy Certificate ID"
                               >
                                 {copiedId === item.certificateId ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
                               </button>
                             </div>
-                            <div className="text-foreground/55 mt-0.5">{item.degree}</div>
+                            <div className="text-foreground/55 mt-0.5 truncate">{item.degree}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:justify-end">
                           <StatusBadge status={item.status} />
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-8 rounded-xl text-xs gap-1.5 border-border/20 hover:border-accent/40 hover:bg-accent/10 transition-colors"
+                            className="h-8 rounded-xl px-3 text-xs gap-1.5 border-border/20 hover:border-accent/40 hover:bg-accent/10 transition-colors"
                             onClick={(e) => { e.stopPropagation(); setSelectedCert(item); }}
                           >
                             <ShieldCheck className="size-3.5 text-accent" />
@@ -517,6 +572,7 @@ export default function InstitutionDashboardPage() {
                             <Button
                               variant="danger"
                               size="sm"
+                              className="h-8 rounded-xl px-3 text-xs"
                               disabled={revoking === item.certificateId}
                               onClick={(e) => { e.stopPropagation(); void revokeCertificate(item.certificateId); }}
                             >
@@ -542,21 +598,38 @@ export default function InstitutionDashboardPage() {
                       </div>
                     </div>
                   ))}
+                  {visibleItems.length === 0 && (
+                    <div className="rounded-2xl border border-border/10 bg-foreground/[0.02] p-6 text-center text-xs text-foreground/55">
+                      No certificates match &ldquo;{certSearch}&rdquo;.
+                    </div>
+                  )}
                 </div>
-                {data.certificates.items.length > 5 && (
-                  <div className="mt-4 flex justify-center">
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  {filteredItems.length > 10 && !query && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAllCertificates(!showAllCertificates)}
                       className="rounded-xl text-xs gap-1.5 border-border/20 text-foreground/80 hover:text-foreground"
                     >
-                      {showAllCertificates ? 'Show less' : `See more (${data.certificates.items.length - 5} more)`}
+                      {showAllCertificates ? 'Show recent 10' : `Show all loaded (${filteredItems.length})`}
                     </Button>
-                  </div>
-                )}
+                  )}
+                  {data.certificates.items.length < (data.certificates.total || 0) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingMore}
+                      onClick={() => void loadMoreCertificates()}
+                      className="rounded-xl text-xs gap-1.5 border-accent/30 text-accent hover:bg-accent/10"
+                    >
+                      {loadingMore ? 'Loading...' : `Load older certificates (${data.certificates.total - data.certificates.items.length} remaining)`}
+                    </Button>
+                  )}
+                </div>
               </div>
-            )}
+              );
+            })()}
           </DashboardSection>
 
           <div className="grid gap-6">

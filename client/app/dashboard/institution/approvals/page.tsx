@@ -73,6 +73,7 @@ export default function InstitutionApprovalsPage() {
         {
           method: 'POST',
           token: session.user.accessToken,
+          timeoutMs: 45000,
         }
       );
       toast.success('Certificate approved and anchored on-chain successfully');
@@ -96,9 +97,9 @@ export default function InstitutionApprovalsPage() {
         diplomaRef.current,
         `BlockCertify_${previewItem.studentName.replace(/\s+/g, '_')}_${previewItem.certificateId}.pdf`
       );
-      toast.success('Diploma PDF generated and downloaded');
+      toast.success('Certificate PDF generated and downloaded');
     } catch {
-      toast.error('Failed to export diploma PDF');
+      toast.error('Failed to export Certificate PDF');
     } finally {
       setDownloading(false);
     }
@@ -204,7 +205,7 @@ export default function InstitutionApprovalsPage() {
                     </div>
                     <div className="min-w-0">
                       <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
-                        Official Diploma Preview — {previewItem.studentName}
+                        Certificate Preview — {previewItem.studentName}
                       </h3>
                       <p className="text-xs text-foreground/50 font-mono truncate">
                         ID: {previewItem.certificateId} · {previewItem.degree}
@@ -228,7 +229,7 @@ export default function InstitutionApprovalsPage() {
                     className="flex items-center gap-1.5 rounded-xl h-9 px-3 text-xs font-semibold"
                   >
                     <Download className="size-3.5" />
-                    {downloading ? 'Exporting...' : 'Download PDF'}
+                    {downloading ? 'Exporting...' : 'Download Certificate PDF'}
                   </Button>
 
                   {previewItem.ipfsUrl && (

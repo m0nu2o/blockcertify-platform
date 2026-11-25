@@ -256,7 +256,7 @@ export function VerificationWidget() {
         }
       }
       const validCount = results.filter((r) => r.success && (r.data?.valid ?? (r as any).valid)).length;
-      toast.success(`Verified ${results.length} certificates (${validCount} valid).`);
+      toast.success(`Verified ${results.length} ${results.length === 1 ? 'certificate' : 'certificates'} (${validCount} valid).`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Bulk verification failed';
       toast.error(msg);
@@ -306,8 +306,9 @@ export function VerificationWidget() {
 
     if (mode === 'bulk' && safeResults.length > 0) {
       const validCount = safeResults.filter((r: any) => r?.success && (r?.data?.valid ?? r?.valid)).length;
+      const unit = safeResults.length === 1 ? 'Certificate' : 'Certificates';
       return {
-        title: `Bulk Results: ${validCount} / ${safeResults.length} Valid`,
+        title: `Bulk Results: ${validCount} / ${safeResults.length} Valid ${unit}`,
         description: 'Batch cryptographic verification complete. Select any certificate below to inspect or download.',
         icon: <Layers className="size-6 text-accent" />,
         iconClassName: 'border border-accent/30 bg-accent/10',
@@ -590,7 +591,7 @@ export function VerificationWidget() {
         {mode === 'bulk' && Array.isArray(bulkResults) && bulkResults.length > 0 && (
           <div className="space-y-3 mb-6">
             <div className="text-xs font-bold text-foreground/70 uppercase tracking-wider">
-              Batch Verification List ({bulkResults.length})
+              Batch Verification List ({bulkResults.length} {bulkResults.length === 1 ? 'certificate' : 'certificates'})
             </div>
             <div className="grid gap-2.5 max-h-64 overflow-y-auto pr-1">
               {bulkResults.map((entry, index) => {
@@ -753,7 +754,7 @@ export function VerificationWidget() {
                     : 'text-foreground/60 hover:text-foreground'
                 }`}
               >
-                <Award className="size-3.5" /> Official Master Diploma
+                <Award className="size-3.5" /> Certificate
               </button>
               <button
                 type="button"
@@ -768,11 +769,11 @@ export function VerificationWidget() {
               </button>
             </div>
 
-            {/* TAB 1: OFFICIAL MASTER DIPLOMA CANVAS */}
+            {/* TAB 1: CERTIFICATE CANVAS */}
             <div className={verifiedTab === 'diploma' ? 'space-y-2' : 'hidden'}>
               <div className="flex items-center justify-between text-xs text-foreground/60 px-1">
                 <span className="flex items-center gap-1.5 font-semibold">
-                  <Sparkles className="size-3 text-accent" /> Verified Academic Diploma (Master Layout)
+                  <Sparkles className="size-3 text-accent" /> Verified Certificate
                 </span>
                 <span className="text-[10.5px] font-mono text-accent font-semibold">
                   A4 Landscape 300+ DPI
@@ -790,7 +791,7 @@ export function VerificationWidget() {
                     </div>
                   </div>
                   <div className="sm:hidden text-center text-[10px] text-foreground/50 pt-1">
-                    Swipe horizontally to view full diploma
+                    Swipe horizontally to view full certificate
                   </div>
                 </div>
               )}
@@ -849,7 +850,7 @@ export function VerificationWidget() {
                     disabled={loading}
                     className="flex-1 gap-2 rounded-xl h-11 shadow-sm font-bold bg-accent text-accent-foreground hover:brightness-110 transition-all"
                   >
-                    <Download className="size-4" /> {loading ? 'Exporting...' : 'Download Official Diploma PDF'}
+                    <Download className="size-4" /> {loading ? 'Exporting...' : 'Download Certificate PDF'}
                   </Button>
                   <Button
                     onClick={() => downloadBlockchainAuditPdf(auditRef.current, result.certificate)}

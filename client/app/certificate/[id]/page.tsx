@@ -353,7 +353,7 @@ export default function CertificatePublicPage() {
             className="w-full sm:w-auto gap-1.5 bg-accent text-accent-foreground font-bold text-xs shadow-md"
           >
             <Download className="size-4" />
-            {downloading ? 'Exporting...' : 'Download Official PDF'}
+            {downloading ? 'Exporting...' : 'Download Certificate PDF'}
           </Button>
           <Link href="/verify" className="w-full sm:w-auto">
             <Button variant="outline" size="sm" className="w-full sm:w-auto gap-1.5 text-xs border-border/20">
@@ -422,7 +422,7 @@ export default function CertificatePublicPage() {
           <div className="rounded-3xl p-3 sm:p-6 bg-[#050811] border border-border/20 shadow-2xl flex flex-col items-center justify-center space-y-3">
             <div className="w-full flex items-center justify-between text-xs text-foreground/60 px-1">
               <span className="flex items-center gap-1.5 font-semibold">
-                <Sparkles className="size-3.5 text-accent" /> Official Degree Diploma (Master Template Layout)
+                <Sparkles className="size-3.5 text-accent" /> Certificate
               </span>
               <span className="text-[10px] border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 rounded-full text-emerald-400 font-mono font-semibold">
                 ✓ Vector Cryptographic Stamp Active
@@ -605,7 +605,7 @@ export default function CertificatePublicPage() {
               disabled={downloading}
             >
               <Download className="size-4" />
-              {downloading ? 'Exporting Master Diploma...' : 'Download Official Diploma PDF'}
+              {downloading ? 'Exporting Certificate PDF...' : 'Download Certificate PDF'}
             </Button>
             {!isRevoked && (
               <a href={linkedInUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
