@@ -27,6 +27,11 @@ const QRScanner = dynamic(() => import('@/components/qr-scanner').then((mod) => 
 
 type VerifyMode = 'id' | 'hash' | 'transaction' | 'qr' | 'bulk';
 
+const DEMO_CERT_ID = 'BC-5A4A9D6E';
+const DEMO_FILE_HASH = '889fb97aa16aa8ffad7499c307801a737f40ea8686049fefd90c5bff48d3c810';
+const DEMO_TX_HASH = '0x4cfcfeb4467d1c98f4d1ffde259a85befef057f162991a255ace0261430d1820';
+const DEMO_BULK_IDS = 'BC-5A4A9D6E\nBC-28A7A8CD';
+
 type VerificationResult = {
   valid: boolean;
   verificationState?: 'valid' | 'revoked' | 'expired' | 'blockchain_pending' | 'blockchain_failed' | 'integrity_failed' | 'not_found';
@@ -263,15 +268,15 @@ export function VerificationWidget() {
   const handleTabChange = (newMode: VerifyMode) => {
     setMode(newMode);
     if (newMode === 'id') {
-      setValue(result?.certificate?.certificateId || 'BC-5A4A9D6E');
+      setValue(result?.certificate?.certificateId || DEMO_CERT_ID);
     } else if (newMode === 'hash') {
-      setValue(result?.certificate?.fileHash || 'e3043a1c700e8114c54547bc245aa8731bd14586e0755635fe125cb8470bf7de');
+      setValue(result?.certificate?.fileHash || DEMO_FILE_HASH);
     } else if (newMode === 'transaction') {
-      setValue(result?.certificate?.transactionHash || '0x9e2c2e198c0cca7de89d959cda7c3e858c29c40a2d1a2d3657f99c3edfb18503');
+      setValue(result?.certificate?.transactionHash || DEMO_TX_HASH);
     } else if (newMode === 'bulk') {
       if (!bulkValue) {
         const certId = result?.certificate?.certificateId;
-        setBulkValue(certId && certId !== 'BC-5A4A9D6E' ? `${certId}\nBC-5A4A9D6E` : 'BC-5A4A9D6E\nBC-5383A1E9');
+        setBulkValue(certId && certId !== DEMO_CERT_ID ? `${certId}\n${DEMO_CERT_ID}` : DEMO_BULK_IDS);
       }
     }
   };
@@ -435,7 +440,7 @@ export function VerificationWidget() {
               <span>Enter Certificate IDs (one per line):</span>
               <button
                 type="button"
-                onClick={() => setBulkValue('BC-5A4A9D6E\nBC-5383A1E9')}
+                onClick={() => setBulkValue(DEMO_BULK_IDS)}
                 className="text-accent hover:underline font-semibold"
               >
                 Fill Sample IDs
@@ -478,7 +483,7 @@ export function VerificationWidget() {
               <button 
                 type="button" 
                 onClick={() => { 
-                  const h = 'e3043a1c700e8114c54547bc245aa8731bd14586e0755635fe125cb8470bf7de'; 
+                  const h = result?.certificate?.fileHash || DEMO_FILE_HASH; 
                   setValue(h); 
                   verify(h, 'hash'); 
                 }} 
@@ -517,7 +522,7 @@ export function VerificationWidget() {
               <button 
                 type="button" 
                 onClick={() => { 
-                  const tx = '0x9e2c2e198c0cca7de89d959cda7c3e858c29c40a2d1a2d3657f99c3edfb18503'; 
+                  const tx = result?.certificate?.transactionHash || DEMO_TX_HASH; 
                   setValue(tx); 
                   verify(tx, 'transaction'); 
                 }} 
