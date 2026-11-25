@@ -66,7 +66,7 @@ export function NotificationDropdown() {
       await apiFetch('/notifications/read-all', { method: 'PATCH', token });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      // leave unread state unchanged if request failed
     }
   };
 
@@ -74,16 +74,20 @@ export function NotificationDropdown() {
     if (!token) return;
     try {
       await apiFetch(`/notifications/${id}/read`, { method: 'PATCH', token });
-    } catch { /* optimistic */ }
-    setNotifications((prev) => prev.map((n) => n._id === id ? { ...n, read: true } : n));
+      setNotifications((prev) => prev.map((n) => n._id === id ? { ...n, read: true } : n));
+    } catch {
+      // leave unread state unchanged if request failed
+    }
   };
 
   const removeNotification = async (id: string) => {
     if (!token) return;
-    setNotifications((prev) => prev.filter((n) => n._id !== id));
     try {
       await apiFetch(`/notifications/${id}`, { method: 'DELETE', token });
-    } catch { /* already removed optimistically */ }
+      setNotifications((prev) => prev.filter((n) => n._id !== id));
+    } catch {
+      // keep item if delete failed
+    }
   };
 
   const getIcon = (type: string) => {

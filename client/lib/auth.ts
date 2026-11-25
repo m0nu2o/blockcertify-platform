@@ -38,7 +38,7 @@ type LoginResponse = {
 };
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET || 'blockcertify-super-secure-nextauth-production-key-2026',
+  secret: process.env.NEXTAUTH_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-nextauth-secret-change-in-prod' : undefined),
   session: { strategy: 'jwt' },
   pages: { signIn: '/login' },
   providers: [
@@ -47,171 +47,64 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
-        role: { label: 'Role', type: 'text' },
-        name: { label: 'Name', type: 'text' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error('Email and password are required');
+        }
 
         const email = credentials.email.trim().toLowerCase();
         const password = credentials.password;
 
-        // 1. Try real backend API first
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-          const response = await fetch(`${API_URL}/auth/login`, {
+        let response: Response;
+        try {
+          response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
             signal: controller.signal,
           });
+        } catch (err) {
           clearTimeout(timeoutId);
-
-          if (response.ok) {
-            const result = (await response.json()) as LoginResponse;
-            if (result?.data?.user) {
-              return {
-                id: result.data.user.id,
-                name: result.data.user.name,
-                email: result.data.user.email,
-                image: result.data.user.avatar,
-                role: result.data.user.role,
-                accessToken: result.data.token,
-                institutionId: result.data.user.institution?._id,
-                institutionStatus: result.data.user.institution?.status || (result.data.user.role === 'institution' ? 'pending' : undefined),
-                subscriptionTier: result.data.user.subscription?.tier || 'free',
-              } satisfies AuthenticatedUser;
-            }
+          if (err instanceof Error && err.name === 'AbortError') {
+            throw new Error('Authentication server timed out. Please try again.');
           }
+          throw new Error('Unable to reach authentication server. Please try again later.');
+        } finally {
+          clearTimeout(timeoutId);
+        }
+
+        const rawText = await response.text();
+        let parsed: Partial<LoginResponse> & { message?: string } = {};
+        try {
+          parsed = rawText ? JSON.parse(rawText) : {};
         } catch {
-          // Backend unreachable or offline — proceed to demo credentials below
+          parsed = {};
         }
 
-        // 2. Demo / Testing Mode Fallback (Allows signing in on Vercel preview & offline testing)
-        if (
-          email === 'admin@blockcertify.com' &&
-          (password === 'Admin@12345' || password === 'Admin@123456' || password === 'admin123' || password === 'Admin123!')
-        ) {
-          return {
-            id: 'admin-demo-id',
-            name: 'System Admin',
-            email: 'admin@blockcertify.com',
-            role: 'admin',
-            accessToken: 'demo-admin-token-testing',
-            subscriptionTier: 'Enterprise',
-          } satisfies AuthenticatedUser;
+        if (!response.ok) {
+          throw new Error(parsed?.message || 'Invalid email or password');
         }
 
-        if (
-          email === 'registrar@futureuniversity.edu' &&
-          (password === 'Welcome@123' || password === 'Admin@12345' || password === 'Admin@123456')
-        ) {
-          return {
-            id: 'inst-demo-id',
-            name: 'Registrar Office',
-            email: 'registrar@futureuniversity.edu',
-            role: 'institution',
-            accessToken: 'demo-institution-token-testing',
-            institutionId: 'future-university-demo-id',
-            institutionStatus: 'approved',
-            subscriptionTier: 'Starter',
-          } satisfies AuthenticatedUser;
+        if (!parsed?.data?.user || !parsed?.data?.token) {
+          throw new Error('Invalid authentication response from server');
         }
 
-        if (
-          email === 'student@blockcertify.com' &&
-          (password === 'Welcome@123' || password === 'Admin@12345' || password === 'Admin@123456')
-        ) {
-          return {
-            id: 'student-demo-id',
-            name: 'Ava Thompson',
-            email: 'student@blockcertify.com',
-            role: 'student',
-            accessToken: 'demo-student-token-testing',
-            subscriptionTier: 'free',
-          } satisfies AuthenticatedUser;
-        }
-
-        if (
-          email === 'jultoexclusive@gmail.com' &&
-          (password === 'Welcome@123' || password === 'Admin@12345' || password === 'Admin@123456' || password === 'Monu@12345')
-        ) {
-          return {
-            id: '6abf862eaa885c302719d2e4',
-            name: 'Monu',
-            email: 'jultoexclusive@gmail.com',
-            role: 'institution',
-            accessToken: 'demo-institution-token-monu',
-            institutionId: '6abf862eaa885c302719d2e6',
-            institutionStatus: 'approved',
-            subscriptionTier: 'Growth',
-          } satisfies AuthenticatedUser;
-        }
-
-        if (
-          email === 'percyywii@gmail.com' &&
-          (password === 'Welcome@123' || password === 'Admin@12345' || password === 'Admin@123456')
-        ) {
-          return {
-            id: '6a93112e7c5e0cc2600a7326',
-            name: 'Percy Williams',
-            email: 'percyywii@gmail.com',
-            role: 'student',
-            accessToken: 'demo-student-token-percy',
-            subscriptionTier: 'free',
-          } satisfies AuthenticatedUser;
-        }
-
-        // 3. Dynamic registration and demo user fallback
-        if (email && password && password.length >= 6) {
-          const rawRole = credentials.role as string | undefined;
-          const role: AppRole = rawRole === 'institution' 
-            ? 'institution' 
-            : rawRole === 'student'
-            ? 'student'
-            : rawRole === 'admin' 
-            ? 'admin' 
-            : email.includes('admin') 
-            ? 'admin' 
-            : (email.includes('institution') || email.includes('registrar')) 
-            ? 'institution' 
-            : 'student';
-          const rawName = credentials.name || email.split('@')[0];
-          const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-
-          let instStatus: InstitutionStatus | undefined = undefined;
-          let instId: string | undefined = undefined;
-
-          if (role === 'institution') {
-            instStatus = 'pending';
-            instId = `inst-${Date.now()}`;
-            if (typeof window !== 'undefined') {
-              try {
-                const storedInsts = JSON.parse(localStorage.getItem('blockcertify-registered-institutions') || '[]');
-                const matched = storedInsts.find((i: any) => i.email?.toLowerCase() === email || i.name?.toLowerCase() === name.toLowerCase());
-                if (matched) {
-                  if (matched.status) instStatus = matched.status;
-                  if (matched._id) instId = matched._id;
-                }
-              } catch {}
-            }
-          }
-
-          return {
-            id: `user-${Date.now()}`,
-            name,
-            email,
-            role,
-            accessToken: `demo-${role}-token-${Date.now()}`,
-            institutionId: instId,
-            institutionStatus: instStatus,
-            subscriptionTier: role === 'admin' ? 'Enterprise' : role === 'institution' ? 'Starter' : 'free',
-          } satisfies AuthenticatedUser;
-        }
-
-        throw new Error('Invalid credentials. Please provide a valid email and password.');
+        const result = parsed as LoginResponse;
+        return {
+          id: result.data.user.id,
+          name: result.data.user.name,
+          email: result.data.user.email,
+          image: result.data.user.avatar,
+          role: result.data.user.role,
+          accessToken: result.data.token,
+          institutionId: result.data.user.institution?._id,
+          institutionStatus: result.data.user.institution?.status || (result.data.user.role === 'institution' ? 'pending' : undefined),
+          subscriptionTier: result.data.user.subscription?.tier || 'free',
+        } satisfies AuthenticatedUser;
       },
     }),
   ],

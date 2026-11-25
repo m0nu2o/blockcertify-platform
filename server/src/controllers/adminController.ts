@@ -107,11 +107,21 @@ export const getVerificationLogs = asyncHandler(async (req: Request, res: Respon
   return sendSuccess(res, { items: logs, total, page, limit }, 'Verification logs fetched');
 });
 
+const updateSettingsSchema = z
+  .object({
+    platformName: z.string().trim().min(1).max(120).optional(),
+    maintenanceMode: z.boolean().optional(),
+    defaultTheme: z.string().trim().min(1).max(60).optional(),
+    supportEmail: z.string().email().optional(),
+  })
+  .catchall(z.union([z.string(), z.number(), z.boolean(), z.null()]));
+
 export const updateSettings = asyncHandler(async (req: Request, res: Response) => {
+  const validatedSettings = updateSettingsSchema.parse(req.body);
   const existing = await Setting.findOne({ key: 'platform' });
   const setting = await Setting.findOneAndUpdate(
     { key: 'platform' },
-    { value: req.body, description: 'Main platform settings' },
+    { value: validatedSettings, description: 'Main platform settings' },
     { upsert: true, new: true }
   );
 
@@ -122,7 +132,7 @@ export const updateSettings = asyncHandler(async (req: Request, res: Response) =
     action: 'settings.updated',
     entity: 'Setting',
     entityId: String(setting._id),
-    metadata: { previous: existing?.value ?? null, next: req.body },
+    metadata: { previous: existing?.value ?? null, next: validatedSettings },
   });
 
   return sendSuccess(res, setting, 'Settings updated');

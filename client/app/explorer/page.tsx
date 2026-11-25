@@ -22,16 +22,17 @@ type LedgerEntry = {
 export default function ExplorerPage() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<{ success?: boolean; data?: any }>('/explorer/latest')
       .then((res) => {
         const list = Array.isArray(res?.data) ? res.data : (res?.data?.items || []);
-        if (list.length > 0) {
-          setEntries(list);
-        }
+        setEntries(list);
       })
-      .catch(console.error)
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load public ledger');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -68,6 +69,10 @@ export default function ExplorerPage() {
                     <div key={i} className="h-20 bg-foreground/[0.03] animate-pulse rounded-2xl" />
                   ))}
                 </div>
+              ) : error ? (
+                <div className="rounded-2xl border border-danger/30 bg-danger/10 p-6 text-center text-sm text-danger">
+                  Unable to load live blockchain ledger: {error}
+                </div>
               ) : (
                 <div className="space-y-3">
                   {entries.map((entry) => (
@@ -79,8 +84,8 @@ export default function ExplorerPage() {
                         <div className="size-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
                           <ShieldCheck className="size-5 text-accent" />
                         </div>
-                        <div>
-                          <div className="font-semibold text-foreground flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             {entry.institutionName} 
                             <span className="text-foreground/40 font-normal text-sm">issued to</span> 
                             {entry.studentName}

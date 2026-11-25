@@ -26,7 +26,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { getSubscriptionTier, SubscriptionTier } from '@/lib/subscription';
 import { apiFetch, API_URL } from '@/lib/api';
-import seedData from '@/lib/mongo-seed-data.json';
 
 const defaultState = {
   studentName: '',
@@ -77,86 +76,23 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
   const isUnapprovedInstitution = userRole === 'institution' && currentInstitutionStatus !== 'approved';
 
   const fetchStudents = useCallback(async (q: string) => {
-    setSearchingStudents(true);
-    const query = q.trim().toLowerCase();
-
-    // Read any locally registered students
-    let localStudents: StudentRecord[] = [];
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('blockcertify-registered-students');
-        if (stored) localStudents = JSON.parse(stored);
-      } catch {}
+    if (!accessToken) {
+      setStudentsList([]);
+      setSearchingStudents(false);
+      return;
     }
-
+    setSearchingStudents(true);
     try {
-      const token = accessToken || 'demo-institution-token-testing';
       const res = await apiFetch<{ data?: { items: StudentRecord[] } }>(`/students?q=${encodeURIComponent(q)}`, {
-        token,
-        timeoutMs: 2000,
+        token: accessToken,
+        timeoutMs: 8000,
       });
-      if (res?.data?.items && res.data.items.length > 0) {
-        const map = new Map<string, StudentRecord>();
-        // Add locally registered students first
-        for (const s of localStudents) {
-          if (s.email) map.set(s.email.toLowerCase(), s);
-        }
-        for (const s of res.data.items) {
-          if (s.email) map.set(s.email.toLowerCase(), s);
-        }
-        const merged = Array.from(map.values());
-        const filtered = query
-          ? merged.filter(
-              (s) =>
-                s.name.toLowerCase().includes(query) ||
-                s.studentId.toLowerCase().includes(query) ||
-                s.email.toLowerCase().includes(query) ||
-                (s.degree && s.degree.toLowerCase().includes(query)) ||
-                (s.course && s.course.toLowerCase().includes(query))
-            )
-          : merged;
-        setStudentsList(filtered);
-        return;
-      }
+      setStudentsList(res?.data?.items || []);
     } catch {
-      // ignore
+      setStudentsList([]);
     } finally {
       setSearchingStudents(false);
     }
-
-    // Direct fallback: merge local registered students with seed data
-    const map = new Map<string, StudentRecord>();
-    for (const s of localStudents) {
-      if (s.email) map.set(s.email.toLowerCase(), s);
-    }
-    for (const s of seedData.students || []) {
-      const email = s.email?.toLowerCase();
-      if (email && !map.has(email)) {
-        map.set(email, {
-          _id: s._id,
-          name: s.name,
-          studentId: s.studentId,
-          email: s.email,
-          degree: s.degree,
-          course: s.course,
-          department: s.department,
-          graduationYear: s.graduationYear,
-        });
-      }
-    }
-    const all = Array.from(map.values());
-    const filtered = query
-      ? all.filter(
-          (s) =>
-            s.name.toLowerCase().includes(query) ||
-            s.studentId.toLowerCase().includes(query) ||
-            s.email.toLowerCase().includes(query) ||
-            (s.degree && s.degree.toLowerCase().includes(query)) ||
-            (s.course && s.course.toLowerCase().includes(query))
-        )
-      : all;
-    setStudentsList(filtered);
-    setSearchingStudents(false);
   }, [accessToken]);
 
   useEffect(() => {
@@ -344,56 +280,32 @@ export function CertificateIssuanceForm({ onCompleted }: { onCompleted?: () => v
       if (file) {
         formData.append('certificatePdf', file);
       }
-      let result: { success: boolean; data?: { certificateId: string }; message?: string };
+      const response = await fetch(`${API_URL}/certificates`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: formData,
+      });
+      const rawText = await response.text();
+      let result: { success?: boolean; data?: Record<string, any>; message?: string } = {};
       try {
-        const response = await fetch(`${API_URL}/certificates`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken}` },
-          body: formData,
-        });
-        result = await response.json();
-        if (!response.ok) throw new Error(result.message || 'Issuance failed');
-      } catch (networkError) {
-        // Fallback for Vercel preview or offline backend
-        const randomHex = Math.random().toString(16).substring(2, 10).toUpperCase();
-        result = {
-          success: true,
-          message: isDraft ? 'Certificate draft queued for approval' : 'Certificate anchored successfully',
-          data: {
-            certificateId: `BC-${randomHex}`,
-          },
-        };
+        result = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        result = { message: rawText || 'Issuance failed' };
+      }
+      if (!response.ok || !result.data?.certificateId) {
+        throw new Error(result.message || 'Certificate issuance failed');
       }
 
-      const issuedCertId = result.data?.certificateId || `BC-${Math.random().toString(16).substring(2, 10).toUpperCase()}`;
+      const issuedCertId = String(result.data.certificateId);
 
-      // Persist newly issued certificate locally for instant visibility across recent lists & search
-      if (typeof window !== 'undefined') {
+      // Persist newly issued certificate locally for instant visibility if needed
+      if (typeof window !== 'undefined' && result.data) {
         try {
           const storedCerts = JSON.parse(localStorage.getItem('blockcertify-local-certificates') || '[]');
           const newCertRecord = {
-            _id: issuedCertId,
+            ...result.data,
+            _id: result.data._id || issuedCertId,
             certificateId: issuedCertId,
-            studentName: values.studentName.trim(),
-            studentId: values.studentId.trim(),
-            email: values.email.trim().toLowerCase(),
-            degree: values.degree.trim(),
-            course: values.course.trim(),
-            department: values.department.trim(),
-            institutionName: values.institutionName.trim() || 'Issuing Institution',
-            institutionId: values.institutionId || 'inst-local',
-            issueDate: values.issueDate || new Date().toISOString().slice(0, 10),
-            expiryDate: values.expiryDate || undefined,
-            grade: values.grade?.trim() || 'First Class with Distinction',
-            signatoryTitle: values.approvedBy?.trim() || 'Registrar',
-            approvedBy: isDraft ? undefined : values.approvedBy?.trim() || 'Registrar',
-            status: isDraft ? 'pending_approval' : 'valid',
-            verificationCount: 0,
-            verificationsCount: 0,
-            transactionHash: isDraft ? undefined : `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-            metadataHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-            fileHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-            createdAt: new Date().toISOString(),
           };
           const existingIdx = storedCerts.findIndex((c: any) => c.certificateId === issuedCertId);
           if (existingIdx >= 0) {

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiHttpError } from '@/lib/api';
 import seedData from '@/lib/mongo-seed-data.json';
 import { 
   OfficialDiplomaCanvas, 
@@ -116,38 +116,6 @@ export default function CertificatePublicPage() {
           foundCert = undefined;
         }
 
-        // Secondary fallback: check local certificates & seed data if backend is offline or sleeping
-        if (!foundCert && typeof window !== 'undefined') {
-          try {
-            const localCerts = JSON.parse(localStorage.getItem('blockcertify-local-certificates') || '[]');
-            const allCerts = [...localCerts, ...(seedData.certificates || [])];
-            const match = allCerts.find(
-              (c: any) => (c.certificateId || '').toUpperCase() === cleanId
-            );
-            if (match) {
-              foundCert = {
-                certificateId: match.certificateId,
-                studentName: match.studentName,
-                studentId: match.studentId || 'N/A',
-                institutionName: match.institutionName || 'Issuing Institution',
-                degree: match.degree || 'Official Credential',
-                course: match.course || match.degree || 'Degree Program',
-                department: match.department || 'Academic Department',
-                issueDate: match.issueDate || new Date().toISOString(),
-                expiryDate: match.expiryDate,
-                status: match.status === 'revoked' ? 'revoked' : 'verified',
-                transactionHash: match.transactionHash || '0x498e72ba6f731c90a1b8d5e4f2c1b9a8e7d6c5b4',
-                fileHash: match.fileHash || '0x498e72ba6f731c90a1b8d5e4f2c1b9a8e7d6c5b4',
-                verificationCount: match.verificationCount || 1,
-              } as CertificateData;
-            }
-          } catch {
-            // ignore localStorage parsing errors
-          }
-        }
-
-        if (!isMounted) return;
-
         if (!foundCert) {
           setError(`No verified credential record found for ID: ${cleanId}`);
           setCert(null);
@@ -166,9 +134,9 @@ export default function CertificatePublicPage() {
       } catch (err: unknown) {
         if (!isMounted) return;
 
-        // Emergency client fallback check
+        // Only check local/seed fallback on network failure, never when server returns an explicit HTTP error (e.g. 404)
         let recovered = false;
-        if (typeof window !== 'undefined') {
+        if (!(err instanceof ApiHttpError) && typeof window !== 'undefined') {
           try {
             const localCerts = JSON.parse(localStorage.getItem('blockcertify-local-certificates') || '[]');
             const allCerts = [...localCerts, ...(seedData.certificates || [])];

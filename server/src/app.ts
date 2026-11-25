@@ -124,11 +124,25 @@ app.use('/verification', verificationRateLimiter, verificationRoutes);
 app.use('/api/explorer', explorerRoutes);
 app.use('/api/students', studentRoutes);
 
+const escapeHtml = (str: string) =>
+  str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const handleContactInquiry = async (req: express.Request, res: express.Response) => {
   try {
-    const { name, email, institution, message, phone } = req.body || {};
-    if (!name || !email || !message) {
-      return res.status(400).json({ success: false, message: 'Name, email, and message are required' });
+    const raw = req.body || {};
+    const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+    const email = typeof raw.email === 'string' ? raw.email.trim() : '';
+    const message = typeof raw.message === 'string' ? raw.message.trim() : '';
+    const institution = typeof raw.institution === 'string' ? raw.institution.trim() : '';
+    const phone = typeof raw.phone === 'string' ? raw.phone.trim() : '';
+
+    if (!name || !email || !message || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, message: 'Valid name, email, and message are required' });
     }
 
     try {
@@ -138,8 +152,8 @@ const handleContactInquiry = async (req: express.Request, res: express.Response)
       if (admin) {
         await NotificationModel.create({
           user: admin._id,
-          title: `New Inquiry from ${name}`,
-          message: `${name} (${email}) from ${institution || 'Independent'} sent an inquiry: "${message.slice(0, 150)}"`,
+          title: `New Inquiry from ${name.slice(0, 80)}`,
+          message: `${name.slice(0, 80)} (${email}) from ${institution || 'Independent'} sent an inquiry: "${message.slice(0, 150)}"`,
           type: 'info',
           read: false,
         });
@@ -151,6 +165,11 @@ const handleContactInquiry = async (req: express.Request, res: express.Response)
     try {
       const { sendEmail, getCleanSmtpUser } = await import('./services/emailService.js');
       const adminEmail = getCleanSmtpUser() || process.env.ADMIN_EMAIL || 'admin@blockcertify.com';
+      const safeName = escapeHtml(name);
+      const safeEmail = escapeHtml(email);
+      const safeInst = escapeHtml(institution || 'N/A');
+      const safePhone = escapeHtml(phone);
+      const safeMsg = escapeHtml(message);
       await sendEmail({
         to: adminEmail,
         replyTo: email,
@@ -159,12 +178,12 @@ const handleContactInquiry = async (req: express.Request, res: express.Response)
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e4e4e7; border-radius: 8px;">
             <h2 style="color: #0f172a; margin-top: 0;">New Product & Rollout Inquiry</h2>
             <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 16px 0;" />
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
-            <p><strong>Institution / Company:</strong> ${institution || 'N/A'}</p>
-            ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ''}
+            <p><strong>Name:</strong> ${safeName}</p>
+            <p><strong>Email:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
+            <p><strong>Institution / Company:</strong> ${safeInst}</p>
+            ${safePhone ? `<p><strong>Phone:</strong> ${safePhone}</p>` : ''}
             <p><strong>Message:</strong></p>
-            <div style="background: #f8fafc; padding: 14px; border-radius: 6px; border-left: 4px solid #3b82f6; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${message}</div>
+            <div style="background: #f8fafc; padding: 14px; border-radius: 6px; border-left: 4px solid #3b82f6; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${safeMsg}</div>
             <p style="font-size: 12px; color: #64748b; margin-top: 24px;">Sent via BlockCertify Contact Portal</p>
           </div>
         `,

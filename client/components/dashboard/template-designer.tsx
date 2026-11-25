@@ -768,7 +768,7 @@ export function TemplateDesigner() {
                       <QRCodeSVG
                         value={
                           config.verificationUrl ||
-                          `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify-blush.vercel.app')}/certificate/${(config.certId?.text?.replace(/^Credential ID:\s*/i, '') || 'BC-2026-9A8B7C').trim()}`
+                          `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify.pages.dev')}/certificate/${(config.certId?.text?.replace(/^Credential ID:\s*/i, '') || 'BC-2026-9A8B7C').trim()}`
                         }
                         size={36}
                         level="M"

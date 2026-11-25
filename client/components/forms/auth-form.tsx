@@ -109,81 +109,16 @@ export function RegisterForm() {
       try {
         await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(values) });
 
-        // Save newly registered user, student, or institution locally for instant visibility
-        if (typeof window !== 'undefined') {
-          try {
-            const now = Date.now();
-
-            // 1. General User Record
-            const storedUsers = JSON.parse(localStorage.getItem('blockcertify-registered-users') || '[]');
-            const newUser = {
-              _id: `user-${now}`,
-              name: values.name.trim(),
-              email: values.email.trim().toLowerCase(),
-              role: values.role,
-              createdAt: new Date().toISOString(),
-            };
-            const uIdx = storedUsers.findIndex((u: any) => u.email === newUser.email);
-            if (uIdx >= 0) storedUsers[uIdx] = { ...storedUsers[uIdx], ...newUser };
-            else storedUsers.unshift(newUser);
-            localStorage.setItem('blockcertify-registered-users', JSON.stringify(storedUsers));
-
-            // 2. Student Record
-            if (values.role === 'student') {
-              const stored = JSON.parse(localStorage.getItem('blockcertify-registered-students') || '[]');
-              const newStudent = {
-                _id: `reg-stu-${now}`,
-                name: values.name.trim(),
-                studentId: values.studentId?.trim() || `STU-${now.toString().slice(-5)}`,
-                email: values.email.trim().toLowerCase(),
-                degree: 'Bachelor of Science',
-                course: 'Computer Science',
-                department: 'Engineering',
-                graduationYear: new Date().getFullYear(),
-              };
-              const existingIdx = stored.findIndex((s: any) => s.email === newStudent.email || s.studentId === newStudent.studentId);
-              if (existingIdx >= 0) {
-                stored[existingIdx] = { ...stored[existingIdx], ...newStudent };
-              } else {
-                stored.unshift(newStudent);
-              }
-              localStorage.setItem('blockcertify-registered-students', JSON.stringify(stored));
-            }
-
-            // 3. Institution Record
-            if (values.role === 'institution') {
-              const storedInsts = JSON.parse(localStorage.getItem('blockcertify-registered-institutions') || '[]');
-              const newInst = {
-                _id: `reg-inst-${now}`,
-                name: values.institutionName?.trim() || values.name.trim(),
-                email: values.email.trim().toLowerCase(),
-                website: 'https://blockcertify.io',
-                status: 'pending',
-                stats: { certificatesIssued: 0, certificatesRevoked: 0, studentsManaged: 0 },
-                createdAt: new Date().toISOString(),
-              };
-              const existingInstIdx = storedInsts.findIndex((i: any) => i.email === newInst.email || i.name === newInst.name);
-              if (existingInstIdx >= 0) {
-                storedInsts[existingInstIdx] = { ...storedInsts[existingInstIdx], ...newInst };
-              } else {
-                storedInsts.unshift(newInst);
-              }
-              localStorage.setItem('blockcertify-registered-institutions', JSON.stringify(storedInsts));
-            }
-
-            window.dispatchEvent(new Event('storage'));
-          } catch {
-            // ignore
-          }
-        }
-
-        await signIn('credentials', { 
-          email: values.email, 
-          password: values.password, 
-          name: values.name,
-          role: values.role,
-          redirect: false 
+        const signInResult = await signIn('credentials', {
+          email: values.email,
+          password: values.password,
+          redirect: false,
         });
+        if (signInResult?.error) {
+          toast.success('Account created! Please sign in.');
+          router.push('/login');
+          return;
+        }
         toast.success('Account created successfully');
         window.location.href = values.role === 'student' ? '/dashboard/student' : '/dashboard/institution';
       } catch (error) {

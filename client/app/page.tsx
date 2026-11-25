@@ -30,13 +30,44 @@ const revealVariants = {
   }
 };
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { apiFetch } from '@/lib/api';
 
 export default function HomePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const { t } = useLanguage();
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [subscribing, setSubscribing] = useState(false);
+
+  const handleNewsletterSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = newsletterEmail.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid work email address.');
+      return;
+    }
+    setSubscribing(true);
+    try {
+      await apiFetch('/contact', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Newsletter Subscriber',
+          email,
+          institution: 'Newsletter',
+          message: `Newsletter digest subscription request for ${email}`,
+        }),
+      });
+      toast.success('Subscribed! You will receive BlockCertify updates.');
+      setNewsletterEmail('');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to subscribe right now.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   const handleStartTrial = () => {
     if (status === 'loading') return;
@@ -182,10 +213,20 @@ export default function HomePage() {
             <div className="mx-auto max-w-3xl z-10 relative">
               <h2 className="text-3xl font-bold tracking-tight text-foreground">Newsletter for registrars and credential teams</h2>
               <p className="mt-4 text-sm text-foreground/70 leading-relaxed max-w-2xl mx-auto">Get blockchain credential best practices, release notes, and verification strategy insights in one premium digest.</p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                <input suppressHydrationWarning className="h-12 rounded-full border border-border/12 bg-foreground/[0.04] px-5 text-sm backdrop-blur-xl text-foreground placeholder:text-foreground/45 focus:outline-none focus:border-accent/40 sm:min-w-80" aria-label="Enter your work email" placeholder="Enter your work email" />
-                <Button size="lg" className="rounded-full px-6 shadow-glow">Subscribe</Button>
-              </div>
+              <form onSubmit={(e) => void handleNewsletterSubscribe(e)} className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <input
+                  suppressHydrationWarning
+                  type="email"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  className="h-12 rounded-full border border-border/12 bg-foreground/[0.04] px-5 text-sm backdrop-blur-xl text-foreground placeholder:text-foreground/45 focus:outline-none focus:border-accent/40 sm:min-w-80"
+                  aria-label="Enter your work email"
+                  placeholder="Enter your work email"
+                />
+                <Button type="submit" disabled={subscribing} size="lg" className="rounded-full px-6 shadow-glow">
+                  {subscribing ? 'Subscribing...' : 'Subscribe'}
+                </Button>
+              </form>
             </div>
           </GlassCard>
         </div>

@@ -153,7 +153,7 @@ export const createCertificatePdfBuffer = async (params: {
   verificationUrl?: string;
 }): Promise<Buffer> => {
   const certId = params.certificateId || `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
-  const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+  const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify.pages.dev').replace(/\/$/, '');
   const verifyUrl = params.verificationUrl || `${clientBase}/certificate/${certId}`;
 
   const qrBuffer = await QRCode.toBuffer(verifyUrl, {
@@ -519,7 +519,7 @@ export const issueCertificate = async ({
   const certificateId = payload.certificateId || `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
   const fileHash = sha256(pdfBuffer);
   const metadataHash = sha256(JSON.stringify(payload));
-  const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+  const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify.pages.dev').replace(/\/$/, '');
   const verificationUrl = `${clientBase}/certificate/${certificateId}`;
   const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, { width: 280, margin: 1 });
 
@@ -621,7 +621,7 @@ export const issueCertificate = async ({
           title: 'Certificate issued',
           message: `Your certificate ${certificate.certificateId} has been issued successfully.`,
           type: 'success',
-          link: `/dashboard/student/certificates/${certificate.certificateId}`,
+          link: `/certificate/${certificate.certificateId}`,
           payload: { certificateId: certificate.certificateId },
         });
       }
@@ -774,12 +774,12 @@ export const approveCertificate = async ({
         title: 'Certificate issued',
         message: `Your certificate ${certificate.certificateId} has been issued successfully.`,
         type: 'success',
-        link: `/dashboard/student/certificates/${certificate.certificateId}`,
+        link: `/certificate/${certificate.certificateId}`,
         payload: { certificateId: certificate.certificateId },
       });
     }
 
-    const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+    const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify.pages.dev').replace(/\/$/, '');
     const publicCertUrl = `${clientBase}/certificate/${certificate.certificateId}`;
     await sendEmail({
       to: certificate.email || '',
@@ -892,89 +892,78 @@ export const bulkIssueCertificates = async ({
   const succeeded: BulkIssueSuccess[] = [];
   const failed: BulkIssueFailure[] = [];
 
-  for (let index = 0; index < rows.length; index += BULK_ISSUE_BATCH_SIZE) {
-    const batch = rows.slice(index, index + BULK_ISSUE_BATCH_SIZE);
-    const results = await Promise.allSettled(
-      batch.map(async (row, batchIndex) => {
-        const rowNum = index + batchIndex + 2; // +1 for 0-index, +1 for CSV header
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    const rowNum = index + 2; // +1 for 0-index, +1 for CSV header
 
-        if (!row.studentName || row.studentName.trim().length === 0) {
-          throw new Error(`Row ${rowNum}: Student name is required`);
-        }
-        if (!row.studentId || row.studentId.trim().length === 0) {
-          throw new Error(`Row ${rowNum}: Student ID is required`);
-        }
-        if (!row.email || !emailRegex.test(row.email.trim())) {
-          throw new Error(`Row ${rowNum}: Invalid email format`);
-        }
-        if (!row.degree || row.degree.trim().length === 0) {
-          throw new Error(`Row ${rowNum}: Degree is required`);
-        }
-        if (!row.course || row.course.trim().length === 0) {
-          throw new Error(`Row ${rowNum}: Course is required`);
-        }
-        if (!row.department || row.department.trim().length === 0) {
-          throw new Error(`Row ${rowNum}: Department is required`);
-        }
-        const gradYear = Number(row.graduationYear);
-        if (isNaN(gradYear) || gradYear < 1900 || gradYear > 2100) {
-          throw new Error(`Row ${rowNum}: Invalid graduation year`);
-        }
-        if (duplicateStudentIds.has(row.studentId)) {
-          throw new Error(`Row ${rowNum}: Duplicate student ID '${row.studentId}' in upload batch`);
-        }
+    try {
+      if (!row.studentName || row.studentName.trim().length === 0) {
+        throw new Error(`Row ${rowNum}: Student name is required`);
+      }
+      if (!row.studentId || row.studentId.trim().length === 0) {
+        throw new Error(`Row ${rowNum}: Student ID is required`);
+      }
+      if (!row.email || !emailRegex.test(row.email.trim())) {
+        throw new Error(`Row ${rowNum}: Invalid email format`);
+      }
+      if (!row.degree || row.degree.trim().length === 0) {
+        throw new Error(`Row ${rowNum}: Degree is required`);
+      }
+      if (!row.course || row.course.trim().length === 0) {
+        throw new Error(`Row ${rowNum}: Course is required`);
+      }
+      if (!row.department || row.department.trim().length === 0) {
+        throw new Error(`Row ${rowNum}: Department is required`);
+      }
+      const gradYear = Number(row.graduationYear);
+      if (isNaN(gradYear) || gradYear < 1900 || gradYear > 2100) {
+        throw new Error(`Row ${rowNum}: Invalid graduation year`);
+      }
+      if (duplicateStudentIds.has(row.studentId)) {
+        throw new Error(`Row ${rowNum}: Duplicate student ID '${row.studentId}' in upload batch`);
+      }
 
-        const certificateId = `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
-        const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
-        const verificationUrl = `${clientBase}/certificate/${certificateId}`;
+      const certificateId = `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
+      const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify.pages.dev').replace(/\/$/, '');
+      const verificationUrl = `${clientBase}/certificate/${certificateId}`;
 
-        const pdfBuffer = await createCertificatePdfBuffer({
+      const pdfBuffer = await createCertificatePdfBuffer({
+        certificateId,
+        studentName: row.studentName,
+        studentId: row.studentId,
+        degree: row.degree,
+        course: row.course,
+        department: row.department,
+        institutionName: institution.name,
+        issueDate: row.issueDate,
+        expiryDate: row.expiryDate,
+        verificationUrl,
+      });
+
+      const certificate = await issueCertificate({
+        payload: {
           certificateId,
           studentName: row.studentName,
           studentId: row.studentId,
+          email: row.email,
           degree: row.degree,
           course: row.course,
           department: row.department,
+          institutionId: String(institution._id),
           institutionName: institution.name,
+          graduationYear: gradYear,
           issueDate: row.issueDate,
           expiryDate: row.expiryDate,
-          verificationUrl,
-        });
+        },
+        pdfBuffer,
+        pdfFileName: `${row.studentId}.pdf`,
+        actorId,
+      });
 
-        const certificate = await issueCertificate({
-          payload: {
-            certificateId,
-            studentName: row.studentName,
-            studentId: row.studentId,
-            email: row.email,
-            degree: row.degree,
-            course: row.course,
-            department: row.department,
-            institutionId: String(institution._id),
-            institutionName: institution.name,
-            graduationYear: gradYear,
-            issueDate: row.issueDate,
-            expiryDate: row.expiryDate,
-          },
-          pdfBuffer,
-          pdfFileName: `${row.studentId}.pdf`,
-          actorId,
-        });
-
-        return { row, certificateId: certificate.certificateId };
-      })
-    );
-
-    results.forEach((result, batchIndex) => {
-      const row = batch[batchIndex];
-
-      if (result.status === 'fulfilled') {
-        succeeded.push({ row, success: true, certificateId: result.value.certificateId });
-        return;
-      }
-
-      failed.push({ row, success: false, error: getErrorMessage(result.reason) });
-    });
+      succeeded.push({ row, success: true, certificateId: certificate.certificateId });
+    } catch (err) {
+      failed.push({ row, success: false, error: getErrorMessage(err) });
+    }
   }
 
   return { succeeded, failed };

@@ -227,7 +227,7 @@ export default function DashboardPage() {
                 </span>
                 Unified operations snapshot
               </div>
-              <h2 className="mt-5 text-2xl xs:text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground drop-shadow-sm">
+              <h2 className="mt-5 text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground drop-shadow-sm">
                 Track issuance and <br className="hidden sm:inline" /> trust signals.
               </h2>
               <p className="mt-4 max-w-lg text-base leading-relaxed text-foreground/70 font-medium">
@@ -324,7 +324,7 @@ export default function DashboardPage() {
           description="Newest certificate records available to your role."
           action={
             <Button variant="secondary" size="sm" asChild>
-              <Link href="/certificates">View all</Link>
+              <Link href={session?.user?.role === 'student' ? '/dashboard/student' : '/dashboard/institution'}>View all</Link>
             </Button>
           }
         >

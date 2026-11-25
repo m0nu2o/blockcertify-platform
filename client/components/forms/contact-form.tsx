@@ -47,6 +47,7 @@ export function ContactForm() {
 
     setSubmitting(true);
 
+    let delivered = false;
     try {
       // 1. Direct Web3Forms submission from the user's browser
       const accessKey = WEB3FORMS_KEY.trim();
@@ -70,7 +71,7 @@ export function ContactForm() {
           });
           const data = await res.json();
           if (data.success) {
-            console.log('[ContactForm] Email delivered via Web3Forms');
+            delivered = true;
           }
         } catch (web3Err) {
           console.warn('[ContactForm] Web3Forms submission issue:', web3Err);
@@ -83,32 +84,21 @@ export function ContactForm() {
           method: 'POST',
           body: JSON.stringify(form),
         });
+        delivered = true;
       } catch (apiErr) {
         console.warn('[ContactForm] Backend notice logged:', apiErr);
       }
 
-      // 3. Save to local browser storage
-      try {
-        const stored = JSON.parse(localStorage.getItem('blockcertify-contact-inquiries') || '[]');
-        stored.unshift({
-          ...form,
-          id: `inq-${Date.now()}`,
-          createdAt: new Date().toISOString(),
-        });
-        localStorage.setItem('blockcertify-contact-inquiries', JSON.stringify(stored.slice(0, 50)));
-      } catch {
-        // ignore
+      if (!delivered) {
+        toast.error('Unable to deliver your inquiry right now. Please try again shortly.');
+        return;
       }
 
-      // Clean single success toast (no overlapping spinner popup!)
       toast.success('Inquiry received! Our team will contact you shortly.');
       setSubmitted(true);
       setForm(initialForm);
     } catch (err: unknown) {
-      console.error(err);
-      toast.success('Inquiry saved! Our team has received your request.');
-      setSubmitted(true);
-      setForm(initialForm);
+      toast.error(err instanceof Error ? err.message : 'Failed to send inquiry.');
     } finally {
       setSubmitting(false);
     }

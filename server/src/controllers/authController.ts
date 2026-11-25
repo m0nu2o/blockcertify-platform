@@ -102,7 +102,18 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   await createAuditLog({ req, actor: user.id, actorEmail: user.email, action: 'user.registered', entity: 'User', entityId: user.id });
 
-  return sendSuccess(res, { user }, 'Registration successful', 201);
+  const safeUser = {
+    id: user.id,
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    institution: user.institution,
+    student: user.student,
+    subscription: user.subscription,
+  };
+
+  return sendSuccess(res, { user: safeUser }, 'Registration successful', 201);
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
@@ -114,10 +125,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, 'User account is deactivated');
   }
 
-  let match = await bcrypt.compare(body.password, user.password);
-  if (!match && user.email === 'admin@blockcertify.com' && (body.password === 'Admin@123456' || body.password === 'Admin@12345')) {
-    match = true;
-  }
+  const match = await bcrypt.compare(body.password, user.password);
   if (!match) throw new ApiError(401, 'Invalid credentials');
 
   // Self-heal institution link if missing

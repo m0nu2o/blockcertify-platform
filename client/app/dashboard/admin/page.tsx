@@ -149,11 +149,11 @@ export default function AdminDashboardPage() {
   };
 
   const loadDashboard = useCallback(async () => {
-    if (!session?.user?.accessToken && status === 'loading') return;
+    if (!session?.user?.accessToken) return;
 
     setLoading(true);
     setError(null);
-    const token = session?.user?.accessToken || 'demo-admin-token-testing';
+    const token = session.user.accessToken;
 
     try {
       const [
@@ -190,7 +190,8 @@ export default function AdminDashboardPage() {
 
   const approveInstitution = useCallback(
     async (institutionId: string) => {
-      const token = session?.user?.accessToken || 'demo-admin-token-testing';
+      if (!session?.user?.accessToken) return;
+      const token = session.user.accessToken;
       setInstitutionActionId(institutionId);
       try {
         await apiFetch(`/admin/institutions/${institutionId}/approve`, { method: 'PATCH', token });
@@ -216,13 +217,14 @@ export default function AdminDashboardPage() {
 
   const suspendInstitution = useCallback(
     async (institutionId: string) => {
+      if (!session?.user?.accessToken) return;
       const reason = window.prompt('Reason for suspending this institution (min 5 characters):');
       if (!reason || reason.trim().length < 5) {
         if (reason !== null) toast.error('Suspension reason must be at least 5 characters.');
         return;
       }
 
-      const token = session?.user?.accessToken || 'demo-admin-token-testing';
+      const token = session.user.accessToken;
       setInstitutionActionId(institutionId);
       try {
         await apiFetch(`/admin/institutions/${institutionId}/suspend`, {
@@ -252,9 +254,10 @@ export default function AdminDashboardPage() {
 
   const approveSubscription = useCallback(
     async (subscriptionId: string) => {
+      if (!session?.user?.accessToken) return;
       setSubscriptionActionId(subscriptionId);
       try {
-        const token = session?.user?.accessToken || 'demo-admin-token-testing';
+        const token = session.user.accessToken;
         await apiFetch(`/admin/subscriptions/${subscriptionId}/approve`, {
           method: 'POST',
           token,

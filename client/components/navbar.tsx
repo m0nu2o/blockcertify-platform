@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, Menu, X, User, LogOut, Bell, Camera, Search, Wallet } from 'lucide-react';
+import { ChevronDown, Menu, X, User, LogOut, Camera, Search, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import { NotificationDropdown } from '@/components/dashboard/notification-dropdown';
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from 'framer-motion';
 import { GlassCard } from '@/components/ui/glass-card';
@@ -25,8 +25,6 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [localAvatar, setLocalAvatar] = useState<string | null>(null);
@@ -258,50 +256,7 @@ export function Navbar() {
                 <Search className="size-5" />
               </button>
 
-              <div className="relative">
-                <button 
-                  suppressHydrationWarning
-                  onClick={() => setNotificationsOpen((prev) => !prev)}
-                  className="relative p-2 text-foreground/70 hover:text-foreground transition-colors rounded-full hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                >
-                  <Bell className="size-5" />
-                  {hasUnread && <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-destructive animate-pulse" />}
-                </button>
-                <AnimatePresence>
-                  {notificationsOpen && (
-                    <>
-                      <button type="button" aria-label="Close notifications" className="fixed inset-0 z-40 cursor-default" onClick={() => setNotificationsOpen(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                        className="absolute right-0 z-50 mt-2 w-72"
-                      >
-                        <GlassCard className="bg-card/95 p-4 shadow-glass border border-border/10">
-                           <div className="flex items-center justify-between mb-3">
-                             <h3 className="text-sm font-semibold">Notifications</h3>
-                             {hasUnread && <Badge className="text-[10px] bg-accent/10 text-accent border-accent/20">2 New</Badge>}
-                           </div>
-                           <div className="space-y-2">
-                             <div className={cn("rounded-lg p-2.5 transition-colors cursor-pointer", hasUnread ? "bg-accent/5 border border-accent/10" : "hover:bg-foreground/5")}>
-                               <p className="text-xs font-medium">Welcome to BlockCertify!</p>
-                               <p className="text-[10px] text-foreground/60 mt-1">Your account is ready to issue and verify credentials.</p>
-                             </div>
-                             <div className={cn("rounded-lg p-2.5 transition-colors cursor-pointer", hasUnread ? "bg-accent/5 border border-accent/10" : "hover:bg-foreground/5")}>
-                               <p className="text-xs font-medium">Complete your profile</p>
-                               <p className="text-[10px] text-foreground/60 mt-1">Add your institution details to get verified.</p>
-                             </div>
-                           </div>
-                           {hasUnread && (
-                             <button onClick={() => setHasUnread(false)} className="w-full text-center text-xs text-accent mt-3 pt-2 border-t border-border/10 hover:underline">Mark all as read</button>
-                           )}
-                        </GlassCard>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
+              <NotificationDropdown />
 
               <Link href="/dashboard">
                 <Button className="rounded-full px-6 font-semibold shadow-glow focus-visible:ring-2 focus-visible:ring-accent">

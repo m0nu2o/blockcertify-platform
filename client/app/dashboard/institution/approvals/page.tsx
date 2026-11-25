@@ -51,7 +51,7 @@ export default function InstitutionApprovalsPage() {
         '/certificates?status=pending_approval&limit=50',
         { token: session.user.accessToken }
       );
-      setDrafts(response.data.items || []);
+      setDrafts(response?.data?.items || []);
     } catch (err) {
       toast.error('Failed to load pending certificate drafts');
       console.error(err);
@@ -196,22 +196,31 @@ export default function InstitutionApprovalsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
             <GlassCard className="w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden border-border/20 shadow-2xl rounded-3xl">
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-5 border-b border-border/12 bg-card/50">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2.5 rounded-2xl bg-accent/10 text-accent">
-                    <Award className="size-5" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 border-b border-border/12 bg-card/50">
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2.5 rounded-2xl bg-accent/10 text-accent shrink-0">
+                      <Award className="size-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
+                        Official Diploma Preview — {previewItem.studentName}
+                      </h3>
+                      <p className="text-xs text-foreground/50 font-mono truncate">
+                        ID: {previewItem.certificateId} · {previewItem.degree}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base font-bold text-foreground truncate">
-                      Official Diploma Preview — {previewItem.studentName}
-                    </h3>
-                    <p className="text-xs text-foreground/50 font-mono">
-                      ID: {previewItem.certificateId} · {previewItem.degree}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setPreviewItem(null)}
+                    className="sm:hidden p-2 rounded-xl text-foreground/50 hover:text-foreground hover:bg-foreground/[0.08] transition-colors shrink-0"
+                    aria-label="Close preview"
+                  >
+                    <X className="size-5" />
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
                     onClick={handleDownloadPreviewPdf}
@@ -244,7 +253,8 @@ export default function InstitutionApprovalsPage() {
                   </Button>
                   <button
                     onClick={() => setPreviewItem(null)}
-                    className="p-2 rounded-xl text-foreground/50 hover:text-foreground hover:bg-foreground/[0.08] transition-colors ml-1"
+                    className="hidden sm:inline-flex p-2 rounded-xl text-foreground/50 hover:text-foreground hover:bg-foreground/[0.08] transition-colors ml-1"
+                    aria-label="Close preview"
                   >
                     <X className="size-5" />
                   </button>
@@ -252,12 +262,14 @@ export default function InstitutionApprovalsPage() {
               </div>
 
               {/* Modal Body / Official Diploma Canvas Viewer */}
-              <div className="flex-1 p-4 sm:p-6 bg-[#050811] overflow-y-auto flex items-center justify-center min-h-[500px]">
-                <div className="w-full max-w-[650px] shadow-2xl rounded-2xl overflow-hidden">
-                  <OfficialDiplomaCanvas
-                    ref={diplomaRef}
-                    config={populateTemplateWithCert(getStoredTemplate(), previewItem)}
-                  />
+              <div className="flex-1 p-3 sm:p-6 bg-[#050811] overflow-y-auto flex flex-col items-center justify-center min-h-[300px] sm:min-h-[500px]">
+                <div className="w-full overflow-x-auto scrollbar-hide">
+                  <div className="min-w-[560px] sm:min-w-0 w-full max-w-[650px] mx-auto shadow-2xl rounded-2xl overflow-hidden">
+                    <OfficialDiplomaCanvas
+                      ref={diplomaRef}
+                      config={populateTemplateWithCert(getStoredTemplate(), previewItem)}
+                    />
+                  </div>
                 </div>
               </div>
 

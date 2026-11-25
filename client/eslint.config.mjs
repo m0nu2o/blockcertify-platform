@@ -26,7 +26,7 @@ const compat = new FlatCompat({
 
 const config = [
   {
-    ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts', 'check-console.js', '*.js'],
+    ignores: ['.next/**', '.open-next/**', 'node_modules/**', 'next-env.d.ts', 'check-console.js', '*.js'],
   },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {

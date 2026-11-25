@@ -364,7 +364,7 @@ export function populateTemplateWithCert(baseConfig: TemplateConfig, cert: Certi
   const formattedExpiryDate = cert.expiryDate ? formatDate(cert.expiryDate) : null;
   const baseUrl = typeof window !== 'undefined'
     ? window.location.origin
-    : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify-blush.vercel.app');
+    : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify.pages.dev');
   const verificationUrl = `${baseUrl}/certificate/${cert.certificateId}`;
 
   return {
@@ -538,7 +538,7 @@ export const OfficialDiplomaCanvas = forwardRef<HTMLDivElement, {
               const cleanCertId = (config.certId?.text?.replace(/^Credential ID:\s*/i, '') || 'BC-DEMO').trim();
               const baseUrl = typeof window !== 'undefined'
                 ? window.location.origin
-                : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify-blush.vercel.app');
+                : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify.pages.dev');
               const publicCertUrl = config.verificationUrl || `${baseUrl}/certificate/${cleanCertId}`;
               return (
                 <QRCodeSVG
@@ -981,7 +981,7 @@ export const BlockchainAuditReceipt = forwardRef<HTMLDivElement, {
                   {(() => {
                     const baseUrl = typeof window !== 'undefined'
                       ? window.location.origin
-                      : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify-blush.vercel.app');
+                      : (process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify.pages.dev');
                     const receiptVerifyUrl = `${baseUrl}/certificate/${cert.certificateId}`;
                     return (
                       <QRCodeSVG

@@ -112,7 +112,7 @@ export function Hero() {
 
           <motion.h1
             variants={itemVariants}
-            className="text-balance text-3xl xs:text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-foreground leading-[1.1] sm:leading-[1.05]"
+            className="text-balance text-3xl sm:text-5xl lg:text-7xl font-black tracking-tight text-foreground leading-[1.1] sm:leading-[1.05]"
           >
             {t('hero.title.part1')}{' '}
             <span className="bg-gradient-to-r from-accent via-blue-400 to-cyan-400 bg-clip-text text-transparent">

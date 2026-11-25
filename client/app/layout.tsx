@@ -25,6 +25,10 @@ export const metadata: Metadata = {
   description: 'Blockchain-based secure digital certificate issuance and verification platform',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://blockcertify.pages.dev'),
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icon-192.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

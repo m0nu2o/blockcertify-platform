@@ -19,6 +19,14 @@ export const errorHandler = (err: Error, _req: Request, res: Response, _next: Ne
     });
   }
 
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({ success: false, message: 'Invalid JSON request body' });
+  }
+
+  if (err.name === 'CastError') {
+    return res.status(400).json({ success: false, message: 'Invalid identifier format' });
+  }
+
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({ success: false, message: err.message, details: err.details });
   }

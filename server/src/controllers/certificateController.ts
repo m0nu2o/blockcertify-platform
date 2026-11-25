@@ -82,7 +82,7 @@ export const createCertificate = asyncHandler(async (req: Request, res: Response
 
   if (!pdfBuffer) {
     const certificateId = (body as any).certificateId || `BC-${uuidv4().slice(0, 8).toUpperCase()}`;
-    const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify-blush.vercel.app').replace(/\/$/, '');
+    const clientBase = (process.env.PUBLIC_VERIFY_URL || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost') ? process.env.CLIENT_URL : '') || 'https://blockcertify.pages.dev').replace(/\/$/, '');
     const verificationUrl = `${clientBase}/certificate/${certificateId}`;
     pdfBuffer = await createCertificatePdfBuffer({
       certificateId,

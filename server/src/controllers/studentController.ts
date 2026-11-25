@@ -70,32 +70,19 @@ export const listStudents = asyncHandler(async (req: Request, res: Response) => 
     }
   } else {
     const institutionId = await resolveAuthorizedInstitutionId(req.user, req.query.institutionId as string | undefined);
-    query.$or = [
-      { institution: institutionId },
-      { institution: null },
-      { institution: { $exists: false } },
-    ];
+    query.institution = institutionId;
   }
 
   const search = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   if (search) {
     const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const searchConditions = [
+    query.$or = [
       { name: { $regex: escaped, $options: 'i' } },
       { studentId: { $regex: escaped, $options: 'i' } },
       { email: { $regex: escaped, $options: 'i' } },
       { degree: { $regex: escaped, $options: 'i' } },
       { course: { $regex: escaped, $options: 'i' } },
     ];
-    if (query.$or) {
-      query.$and = [
-        { $or: query.$or },
-        { $or: searchConditions },
-      ];
-      delete query.$or;
-    } else {
-      query.$or = searchConditions;
-    }
   }
 
   const students = await Student.find(query).sort({ createdAt: -1 }).limit(100);

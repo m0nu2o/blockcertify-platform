@@ -38,7 +38,8 @@ export const getSubscriptionTier = (userId?: string): SubscriptionTier => {
 };
 
 export const fetchCurrentSubscription = async (token: string, userId?: string): Promise<CurrentSubscriptionResponse> => {
-  const result = await apiFetch<CurrentSubscriptionResponse>('/subscriptions/current', { token });
+  const res = await apiFetch<{ data?: CurrentSubscriptionResponse } & Partial<CurrentSubscriptionResponse>>('/subscriptions/current', { token });
+  const result = (res?.data ?? res) as CurrentSubscriptionResponse;
   if (typeof window !== 'undefined' && userId && result?.tier) {
     localStorage.setItem(`blockcertify-tier-${userId}`, result.tier);
     window.dispatchEvent(new Event('storage'));
@@ -47,7 +48,7 @@ export const fetchCurrentSubscription = async (token: string, userId?: string): 
 };
 
 export const requestSubscriptionPlan = async (tier: SubscriptionTier, token: string, userId?: string) => {
-  const result = await apiFetch<{ subscription: unknown }>('/subscriptions/request', {
+  const res = await apiFetch<{ data?: { subscription: unknown }; subscription?: unknown }>('/subscriptions/request', {
     method: 'POST',
     token,
     body: JSON.stringify({ tier }),
@@ -58,11 +59,11 @@ export const requestSubscriptionPlan = async (tier: SubscriptionTier, token: str
     window.dispatchEvent(new Event('storage'));
   }
 
-  return result;
+  return res?.data ?? res;
 };
 
 export const cancelSubscriptionPlan = async (token: string, userId?: string) => {
-  const result = await apiFetch<{ tier: 'free'; status: 'active' }>('/subscriptions/cancel', {
+  const res = await apiFetch<{ data?: { tier: 'free'; status: 'active' }; tier?: 'free'; status?: 'active' }>('/subscriptions/cancel', {
     method: 'POST',
     token,
   });
@@ -72,7 +73,7 @@ export const cancelSubscriptionPlan = async (token: string, userId?: string) => 
     window.dispatchEvent(new Event('storage'));
   }
 
-  return result;
+  return (res?.data ?? res) as { tier: 'free'; status: 'active' };
 };
 
 export const setSubscriptionTier = async (userId: string, tier: SubscriptionTier, token?: string) => {

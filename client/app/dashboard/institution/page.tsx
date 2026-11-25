@@ -216,64 +216,31 @@ export default function InstitutionDashboardPage() {
         document.body.removeChild(a);
         toast.success('CSV exported successfully!', { id: toastId });
       } else {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>BlockCertify — Certificates Registry</title>
-                <style>
-                  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #0f172a; }
-                  h1 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
-                  .sub { color: #64748b; font-size: 12px; margin-bottom: 20px; }
-                  table { width: 100%; border-collapse: collapse; font-size: 11px; }
-                  th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
-                  th { background: #f8fafc; font-weight: 700; color: #334155; }
-                  tr:nth-child(even) { background: #f8fafc; }
-                  .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-                  .valid, .issued { background: #dcfce7; color: #15803d; }
-                  .revoked { background: #fee2e2; color: #b91c1c; }
-                  .mono { font-family: monospace; font-size: 10px; color: #475569; }
-                </style>
-              </head>
-              <body>
-                <h1>BlockCertify — Official Certificates Registry Report</h1>
-                <div class="sub">Generated: ${new Date().toLocaleString()} · Total: ${items.length} records · Ethereum Verified</div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Certificate ID</th>
-                      <th>Student Name</th>
-                      <th>Degree / Major</th>
-                      <th>Issue Date</th>
-                      <th>Status</th>
-                      <th>Transaction Hash</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${items.map((i) => `
-                      <tr>
-                        <td><strong>${i.certificateId}</strong></td>
-                        <td>${i.studentName}</td>
-                        <td>${i.degree || ''} ${i.course ? `(${i.course})` : ''}</td>
-                        <td>${i.issueDate}</td>
-                        <td><span class="badge ${i.status}">${i.status}</span></td>
-                        <td class="mono">${(i.transactionHash || '').slice(0, 18)}...</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </body>
-            </html>
-          `);
-          printWindow.document.close();
-          printWindow.focus();
-          setTimeout(() => {
-            printWindow.print();
-          }, 600);
-          toast.success('PDF report generated!', { id: toastId });
-        }
+        const { jsPDF } = await import('jspdf');
+        const autoTable = (await import('jspdf-autotable')).default;
+        const doc = new jsPDF();
+        doc.setFontSize(14);
+        doc.text('BlockCertify - Certificates Registry Report', 14, 16);
+        doc.setFontSize(9);
+        doc.text(`Generated: ${new Date().toLocaleString()} · Total: ${items.length} records`, 14, 23);
+
+        autoTable(doc, {
+          startY: 30,
+          head: [['Certificate ID', 'Student Name', 'Degree / Course', 'Issue Date', 'Status', 'Tx Hash']],
+          body: items.map((i) => [
+            i.certificateId || '',
+            i.studentName || '',
+            `${i.degree || ''}${i.course ? ` (${i.course})` : ''}`,
+            formatDate(i.issueDate),
+            i.status || '',
+            i.transactionHash ? `${i.transactionHash.slice(0, 16)}...` : 'N/A',
+          ]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [59, 130, 246] },
+        });
+
+        doc.save(`certificates_${new Date().toISOString().slice(0, 10)}.pdf`);
+        toast.success('PDF report downloaded!', { id: toastId });
       }
     } catch (err) {
       toast.error('Failed to export certificates', { id: toastId });
