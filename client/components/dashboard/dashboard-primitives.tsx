@@ -57,16 +57,16 @@ export function DashboardSection({
   children: ReactNode;
 }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-full">
-      <GlassCard className="h-full flex flex-col">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-full min-w-0">
+      <GlassCard className="h-full flex flex-col min-w-0 overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-border/10 pb-4 md:flex-row md:items-start md:justify-between shrink-0">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold">{title}</h2>
             {description ? <p className="mt-1 text-sm text-foreground/60">{description}</p> : null}
           </div>
           {action ? <div className="shrink-0">{action}</div> : null}
         </div>
-        <div className="mt-5 flex-1">{children}</div>
+        <div className="mt-5 flex-1 min-w-0 w-full">{children}</div>
       </GlassCard>
     </motion.div>
   );
