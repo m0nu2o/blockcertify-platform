@@ -12,7 +12,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       if (process.env.NODE_ENV === 'production') {
-        navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+        navigator.serviceWorker
+          .register('/sw.js', { updateViaCache: 'none' })
+          .then((registration) => registration.update())
+          .catch(() => undefined);
       } else {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
           for (const registration of registrations) {
